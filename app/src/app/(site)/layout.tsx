@@ -16,6 +16,11 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }} />
+      {store.preview && (
+        <p className="bg-sand px-4 py-2 text-center text-xs font-semibold text-brand">
+          Versão de demonstração: veículos, preços e contatos são exemplos e ainda não representam a loja.
+        </p>
+      )}
       <header className="sticky top-0 z-30 bg-brand text-paper shadow-sm">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2.5">
           <Link href="/" aria-label={`${store.name} — página inicial`} className="shrink-0">

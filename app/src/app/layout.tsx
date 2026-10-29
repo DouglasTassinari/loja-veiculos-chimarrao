@@ -8,6 +8,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   metadataBase: new URL(store.siteUrl),
+  ...(store.preview ? { robots: { index: false, follow: false } } : {}),
   title: { default: `${store.name} — Seminovos em ${store.city}/${store.state}`, template: `%s | ${store.short}` },
   description: `Carros seminovos e usados em ${store.city}/${store.state}. Veja os detalhes, simule a parcela e fale com a equipe.`,
 };

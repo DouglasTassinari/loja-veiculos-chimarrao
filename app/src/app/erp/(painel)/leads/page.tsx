@@ -12,8 +12,8 @@ function ago(created: string): string {
   return h < 1 ? "agora há pouco" : h < 24 ? `há ${h}h` : `há ${Math.floor(h / 24)}d`;
 }
 
-export default function Leads() {
-  const all = leads();
+export default async function Leads() {
+  const all = await leads();
   const sources = Object.entries(all.reduce<Record<string, number>>((m, l) => ((m[l.source] = (m[l.source] ?? 0) + 1), m), {}));
   return (
     <div className="space-y-5">

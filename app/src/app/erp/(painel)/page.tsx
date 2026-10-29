@@ -6,8 +6,8 @@ import { Card, Stat, StatusPill } from "../ui";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Painel" };
 
-export default function Painel() {
-  const all = allVehicles();
+export default async function Painel() {
+  const [all, cashAll, leadsAll] = await Promise.all([allVehicles(), cashEntries(), leads()]);
   const stock = all.filter((v) => v.status !== "vendido");
   const month = todayISO().slice(0, 7);
   const soldMonth = all.filter((v) => v.status === "vendido" && v.sale_date?.startsWith(month));
@@ -21,7 +21,7 @@ export default function Painel() {
   const potential = stock.filter((v) => v.status !== "preparacao").reduce((s, v) => s + v.analysis.profit, 0);
 
   const horizon = todayISO(30);
-  const cash = cashEntries().filter((e) => !e.paid && e.due_date <= horizon);
+  const cash = cashAll.filter((e) => !e.paid && e.due_date <= horizon);
   const receber = cash.filter((e) => e.kind === "receber").reduce((s, e) => s + e.amount, 0);
   const pagar = cash.filter((e) => e.kind === "pagar").reduce((s, e) => s + e.amount, 0);
 
@@ -30,7 +30,7 @@ export default function Painel() {
     .sort((a, b) => Number(b.alertList.some((x) => x.level === "danger")) - Number(a.alertList.some((x) => x.level === "danger")) || b.analysis.days - a.analysis.days)
     .slice(0, 6);
 
-  const newLeads = leads().filter((l) => l.status === "novo");
+  const newLeads = leadsAll.filter((l) => l.status === "novo");
   const lateLeads = newLeads.filter((l) => hoursSince(l.created_at) > 2);
 
   return (

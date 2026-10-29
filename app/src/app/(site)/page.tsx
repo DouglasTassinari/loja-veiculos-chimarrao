@@ -22,8 +22,8 @@ const info = [
   { t: "Troca e financiamento", d: "Consulte as condições com a equipe. A simulação no site é uma estimativa." },
 ];
 
-export default function Home() {
-  const all = publicVehicles();
+export default async function Home() {
+  const all = await publicVehicles();
   const featured = all.filter((v) => v.status === "disponivel").slice(0, 6);
   const total = all.filter((v) => v.status !== "vendido").length;
   return (

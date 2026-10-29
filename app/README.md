@@ -1,6 +1,6 @@
 # Loja de Veículos — Site + ERP (MVP)
 
-Next.js 16 + TypeScript + Tailwind. Banco SQLite embutido (`node:sqlite`), criado e populado com dados de exemplo no primeiro acesso (`data/loja.db`, fora do git).
+Next.js 16 + TypeScript + Tailwind. Dois bancos com o mesmo SQL (`src/lib/db.ts`): sem `DATABASE_URL`, SQLite embutido em `data/loja.db` (desenvolvimento, fora do git); com `DATABASE_URL`, PostgreSQL (produção). As tabelas são criadas sozinhas e, fora de produção (ou com `SEED_DEMO=1`), recebem dados de exemplo. Publicação no Render: ver `../DEPLOY.md`.
 
 ## Rodar
 

@@ -1,0 +1,34 @@
+# Confere se o site publicado está no ar. Se falhar, o GitHub manda e-mail para o dono.
+# O plano grátis do Render "dorme" sem visitas e leva até ~1 minuto para acordar: por isso o tempo de espera
+# é longo (90 s) e a conferência é repetida uma vez antes de dar falha.
+#
+# Por enquanto só roda no botão "Run workflow" (aba Actions). Depois de publicar e confirmar o endereço
+# em SITE, acrescente o agendamento (cron), no mesmo estilo do NuMelhor, no horário de funcionamento da loja.
+name: monitor
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SITE: https://chimarrao-veiculos.onrender.com
+    steps:
+      - name: Conferir /saude (responde 200 com ok=true)
+        run: |
+          for tentativa in 1 2; do
+            codigo=$(curl -sS -o resposta.json -w '%{http_code}' --max-time 90 "$SITE/saude" || true)
+            if [ "$codigo" = "200" ] && jq -e '.ok == true' resposta.json > /dev/null 2>&1; then
+              echo "OK: $SITE/saude respondeu $(cat resposta.json)"
+              exit 0
+            fi
+            echo "::warning::Tentativa $tentativa: $SITE/saude respondeu HTTP $codigo"
+            if [ "$tentativa" = 1 ]; then sleep 30; fi
+          done
+          echo "::error::O site não respondeu /saude com ok=true depois de 2 tentativas."
+          exit 1

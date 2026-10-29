@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PageProps<"/veiculo/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const v = vehicleBySlug(slug);
+  const v = await vehicleBySlug(slug);
   if (!v || (!v.published && v.status !== "vendido")) return {};
   const title = `${vehicleTitle(v)} ${v.year_model} — ${brl(v.asking_price)}`;
   return {
@@ -26,10 +26,10 @@ export async function generateMetadata({ params }: PageProps<"/veiculo/[slug]">)
 export default async function VehiclePage({ params, searchParams }: PageProps<"/veiculo/[slug]">) {
   const { slug } = await params;
   const sp = await searchParams;
-  const v = vehicleBySlug(slug);
+  const v = await vehicleBySlug(slug);
   if (!v || (!v.published && v.status !== "vendido")) notFound();
   const sold = v.status === "vendido";
-  const similar = publicVehicles({ body: v.body }).filter((x) => x.id !== v.id && x.status !== "vendido").slice(0, 3);
+  const similar = (await publicVehicles({ body: v.body })).filter((x) => x.id !== v.id && x.status !== "vendido").slice(0, 3);
   const spec: [string, string][] = [
     ["Ano/modelo", `${v.year_fab}/${v.year_model}`], ["Quilometragem", `${km(v.km)} km`], ["Câmbio", v.transmission],
     ["Combustível", v.fuel], ["Motor", v.engine || "—"], ["Cor", v.color || "—"], ["Portas", String(v.doors)], ["Carroceria", v.body],

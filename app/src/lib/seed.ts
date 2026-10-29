@@ -1,9 +1,8 @@
-import type { DatabaseSync } from "node:sqlite";
+import type { QueryFn } from "./db";
+import { todayISO, nowTs } from "./finance";
 
 function daysAgo(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
+  return todayISO(-n);
 }
 
 function slugify(s: string): string {
@@ -35,43 +34,46 @@ const vehicles: Seed[] = [
   { plate: "NSN1J66", brand: "Nissan", model: "Kicks", version: "Exclusive", body: "SUV", yf: 2022, ym: 2022, km: 30000, fuel: "Flex", trans: "Automático", color: "Branca", engine: "1.6 CVT 114cv", status: "vendido", published: 0, single: 1, inspected: 1, warranty: null, buy: 83000, buyAgo: 40, ask: 97900, fipe: 95000, costs: [["Documentação", "Transferência", 600], ["Mecânica", "Revisão", 900], ["Comissão", "Comissão vendedor", 1200]] },
 ];
 
-export function seed(db: DatabaseSync): void {
-  const insV = db.prepare(`
-    INSERT INTO vehicles (slug, plate, brand, model, version, body, year_fab, year_model, km, fuel,
-      transmission, color, doors, engine, description, status, published, single_owner, inspected,
-      factory_warranty_until, purchase_price, purchase_date, asking_price, fipe_price, min_price,
-      sale_price, sale_date, ready_date, photos)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,4,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'[]')
-  `);
-  const insC = db.prepare(
-    "INSERT INTO costs (vehicle_id, category, description, amount, date) VALUES (?,?,?,?,?)",
-  );
-  vehicles.forEach((v, i) => {
+// Dados de exemplo para demonstração. Em produção real, não semear (SEED_DEMO != 1).
+export async function seed(q: QueryFn): Promise<void> {
+  for (let i = 0; i < vehicles.length; i++) {
+    const v = vehicles[i];
     const sold = v.status === "vendido";
-    const r = insV.run(
-      `${slugify(`${v.brand} ${v.model} ${v.version} ${v.ym}`)}-${i + 1}`, v.plate, v.brand, v.model, v.version, v.body,
-      v.yf, v.ym, v.km, v.fuel, v.trans, v.color, v.engine,
-      `${v.brand} ${v.model} ${v.version}, ${v.km.toLocaleString("pt-BR")} km, ${v.trans.toLowerCase()}. Fale com a equipe para ver os detalhes e combinar uma visita.`,
-      v.status, v.published, v.single, v.inspected, v.warranty,
-      v.buy, daysAgo(v.buyAgo), v.ask, v.fipe, Math.round(v.ask * 0.96),
-      sold ? v.ask - 1500 : null, sold ? daysAgo(5) : null,
-      v.status === "preparacao" ? null : daysAgo(Math.max(v.buyAgo - 4, 0)),
-    );
-    const id = Number(r.lastInsertRowid);
-    v.costs.forEach(([cat, desc, amt]) => insC.run(id, cat, desc, amt, daysAgo(Math.max(v.buyAgo - 2, 0))));
-  });
-  const insL = db.prepare("INSERT INTO leads (vehicle_id, name, phone, message, source, status, created_at) VALUES (?,?,?,?,?,?,?)");
-  insL.run(1, "Carlos Silva", "(51) 98888-1111", "Aceita meu Gol na troca?", "site", "novo", new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
-  insL.run(2, "Marina Souza", "(51) 97777-2222", "Qual a entrada mínima?", "webmotors", "contatado", new Date(Date.now() - 30 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
-  insL.run(8, "João Pereira", "(51) 96666-3333", "Quero fechar hoje.", "site", "negociacao", new Date(Date.now() - 52 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
+    const [row] = (await q(
+      `INSERT INTO vehicles (slug, plate, brand, model, version, body, year_fab, year_model, km, fuel,
+        transmission, color, doors, engine, description, status, published, single_owner, inspected,
+        factory_warranty_until, purchase_price, purchase_date, asking_price, fipe_price, min_price,
+        sale_price, sale_date, ready_date, photos, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,4,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,'[]',$28)
+       RETURNING id`,
+      [
+        `${slugify(`${v.brand} ${v.model} ${v.version} ${v.ym}`)}-${i + 1}`, v.plate, v.brand, v.model, v.version, v.body,
+        v.yf, v.ym, v.km, v.fuel, v.trans, v.color, v.engine,
+        `${v.brand} ${v.model} ${v.version}, ${v.km.toLocaleString("pt-BR")} km, ${v.trans.toLowerCase()}. Fale com a equipe para ver os detalhes e combinar uma visita.`,
+        v.status, v.published, v.single, v.inspected, v.warranty,
+        v.buy, daysAgo(v.buyAgo), v.ask, v.fipe, Math.round(v.ask * 0.96),
+        sold ? v.ask - 1500 : null, sold ? daysAgo(5) : null,
+        v.status === "preparacao" ? null : daysAgo(Math.max(v.buyAgo - 4, 0)), nowTs(),
+      ],
+    )) as { id: number }[];
+    for (const [cat, desc, amt] of v.costs) {
+      await q("INSERT INTO costs (vehicle_id, category, description, amount, date) VALUES ($1,$2,$3,$4,$5)", [row.id, cat, desc, amt, daysAgo(Math.max(v.buyAgo - 2, 0))]);
+    }
+  }
 
-  const insE = db.prepare("INSERT INTO cash_entries (kind, description, amount, due_date, paid, vehicle_id) VALUES (?,?,?,?,?,?)");
-  const inDays = (n: number) => daysAgo(-n);
-  insE.run("receber", "Venda Kicks — retorno financiamento", 3200, inDays(6), 0, 9);
-  insE.run("receber", "Venda Kicks — saldo restante", 12000, inDays(2), 0, 9);
-  insE.run("pagar", "Compra Onix Premier (parcela)", 20000, inDays(4), 0, 7);
-  insE.run("pagar", "Aluguel do pátio", 6500, inDays(9), 0, null);
-  insE.run("pagar", "Folha / comissões", 11000, inDays(14), 0, null);
-  insE.run("pagar", "Anúncios (portais + Meta)", 3800, inDays(20), 0, null);
-  insE.run("receber", "Entrada reserva Yaris", 5000, inDays(1), 0, 8);
+  const hoursAgo = (h: number) => nowTs(new Date(Date.now() - h * 3600e3));
+  const L = "INSERT INTO leads (vehicle_id, name, phone, message, source, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)";
+  await q(L, [1, "Carlos Silva", "(51) 98888-1111", "Aceita meu Gol na troca?", "site", "novo", hoursAgo(3)]);
+  await q(L, [2, "Marina Souza", "(51) 97777-2222", "Qual a entrada mínima?", "webmotors", "contatado", hoursAgo(30)]);
+  await q(L, [8, "João Pereira", "(51) 96666-3333", "Quero fechar hoje.", "site", "negociacao", hoursAgo(52)]);
+
+  const E = "INSERT INTO cash_entries (kind, description, amount, due_date, paid, vehicle_id) VALUES ($1,$2,$3,$4,0,$5)";
+  const inDays = (n: number) => todayISO(n);
+  await q(E, ["receber", "Venda Kicks — retorno financiamento", 3200, inDays(6), 9]);
+  await q(E, ["receber", "Venda Kicks — saldo restante", 12000, inDays(2), 9]);
+  await q(E, ["pagar", "Compra Onix Premier (parcela)", 20000, inDays(4), 7]);
+  await q(E, ["pagar", "Aluguel do pátio", 6500, inDays(9), null]);
+  await q(E, ["pagar", "Folha / comissões", 11000, inDays(14), null]);
+  await q(E, ["pagar", "Anúncios (portais + Meta)", 3800, inDays(20), null]);
+  await q(E, ["receber", "Entrada reserva Yaris", 5000, inDays(1), 8]);
 }

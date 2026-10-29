@@ -8,7 +8,9 @@ export const store = {
   whatsappLabel: "(51) 99999-9999",
   phoneLabel: "(51) 3499-9999",
   address: "Rua Campeiro, 99, Nova Sapucaia, Sapucaia do Sul - RS, 93228-314",
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? process.env.RENDER_EXTERNAL_URL ?? "http://localhost:3000",
+  // NEXT_PUBLIC_PREVIEW=1: versão de demonstração (faixa no site, fora do Google).
+  preview: process.env.NEXT_PUBLIC_PREVIEW === "1",
 };
 
 // Parâmetros de gestão usados nos cálculos do ERP.

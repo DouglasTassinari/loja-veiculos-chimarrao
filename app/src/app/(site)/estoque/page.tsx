@@ -24,8 +24,8 @@ export default async function Estoque({ searchParams }: PageProps<"/estoque">) {
   const sp = await searchParams;
   const q = one(sp.q), brand = one(sp.brand), body = one(sp.body), trans = one(sp.trans), sort = one(sp.sort);
   const maxPrice = Number(one(sp.maxPrice)) || undefined;
-  const list = publicVehicles({ q, brand, body, trans, maxPrice, sort });
-  const universe = allVehicles().filter((v) => v.published);
+  const [list, everything] = await Promise.all([publicVehicles({ q, brand, body, trans, maxPrice, sort }), allVehicles()]);
+  const universe = everything.filter((v) => v.published);
   const brands = [...new Set(universe.map((v) => v.brand))].sort();
   const bodies = [...new Set(universe.map((v) => v.body))].sort();
   const available = list.filter((v) => v.status !== "vendido").length;

@@ -6,8 +6,8 @@ import { Card, Field, Stat, btn } from "../../ui";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Caixa" };
 
-export default function Caixa() {
-  const all = cashEntries();
+export default async function Caixa() {
+  const all = await cashEntries();
   const open = all.filter((e) => !e.paid);
   const today = todayISO();
   const within = (days: number) => {

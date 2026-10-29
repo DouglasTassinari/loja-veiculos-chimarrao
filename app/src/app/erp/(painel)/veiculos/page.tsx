@@ -9,8 +9,8 @@ export const metadata = { title: "Estoque" };
 export default async function Estoque({ searchParams }: PageProps<"/erp/veiculos">) {
   const sp = await searchParams;
   const filter = typeof sp.s === "string" ? sp.s : "ativos";
-  const lc = leadsByVehicle();
-  let list = allVehicles();
+  const [lc, everything] = await Promise.all([leadsByVehicle(), allVehicles()]);
+  let list = everything;
   if (filter === "ativos") list = list.filter((v) => v.status !== "vendido");
   else if (filter !== "todos") list = list.filter((v) => v.status === filter);
   list = [...list].sort((a, b) => b.analysis.days - a.analysis.days);

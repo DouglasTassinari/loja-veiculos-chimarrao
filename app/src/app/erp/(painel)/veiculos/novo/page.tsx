@@ -2,6 +2,7 @@ import { todayISO } from "@/lib/finance";
 import { newVehicle } from "../../../../actions";
 import { Card, Field, btn } from "../../../ui";
 
+export const dynamic = "force-dynamic"; // a data padrão é "hoje", não a do build
 export const metadata = { title: "Novo veículo" };
 
 export default function Novo() {

@@ -1,0 +1,35 @@
+# Blueprint do Render: web service (Next.js) + PostgreSQL.
+# Publicar: Render > New > Blueprint > escolher este repositório.
+databases:
+  - name: chimarrao-db
+    plan: free
+    databaseName: chimarrao
+    user: chimarrao
+
+services:
+  - type: web
+    name: chimarrao-veiculos
+    runtime: node
+    plan: free
+    rootDir: app
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /saude
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: chimarrao-db
+          property: connectionString
+      # Senha do ERP: digitada por você no painel do Render (não fica no repositório).
+      - key: ERP_PASSWORD
+        sync: false
+      - key: ERP_SECRET
+        generateValue: true
+      # Versão de demonstração: faixa no site, fora do Google e com dados de exemplo.
+      # Para a loja real: apagar estas duas variáveis e cadastrar os veículos reais.
+      - key: NEXT_PUBLIC_PREVIEW
+        value: "1"
+      - key: SEED_DEMO
+        value: "1"

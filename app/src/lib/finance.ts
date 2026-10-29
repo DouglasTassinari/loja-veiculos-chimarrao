@@ -37,6 +37,11 @@ export function todayISO(offsetDays = 0): string {
   return d.toLocaleDateString("sv-SE", { timeZone: TZ });
 }
 
+// Timestamp "YYYY-MM-DD HH:MM:SS" em UTC, igual nos dois bancos.
+export function nowTs(d: Date = new Date()): string {
+  return d.toISOString().slice(0, 19).replace("T", " ");
+}
+
 export function fmtDate(iso: string): string {
   const [y, m, d] = iso.slice(0, 10).split("-");
   return `${d}/${m}/${y}`;

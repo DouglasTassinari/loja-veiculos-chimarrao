@@ -1,0 +1,35 @@
+# Roda a cada envio para o GitHub (push) e em todo pull request:
+# confere o estilo do código (eslint) e se o site compila (inclui checagem de tipos).
+name: verificacao
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Conferir o código (eslint)
+        run: npx eslint src
+
+      - name: Compilar o site (checa os tipos)
+        run: npx next build

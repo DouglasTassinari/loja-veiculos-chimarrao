@@ -25,7 +25,7 @@ export async function submitLead(f: FormData) {
   const back = /^\/veiculo\/[a-z0-9-]+$/.test(raw) ? raw : "/estoque"; // evita redirecionamento aberto
   if (name.length < 2 || phone.replace(/\D/g, "").length < 10) redirect(`${back}?erro=1`);
   const vid = Number(str(f, "vehicle_id")) || null;
-  createLead({ vehicle_id: vid, name: name.slice(0, 100), phone: phone.slice(0, 30), message: str(f, "message").slice(0, 500), source: "site" });
+  await createLead({ vehicle_id: vid, name: name.slice(0, 100), phone: phone.slice(0, 30), message: str(f, "message").slice(0, 500), source: "site" });
   revalidatePath("/erp/leads");
   redirect(`${back}?enviado=1`);
 }
@@ -44,7 +44,7 @@ export async function logout() {
 
 export async function newVehicle(f: FormData) {
   await requireSession();
-  const id = createVehicle({
+  const id = await createVehicle({
     plate: str(f, "plate"), brand: str(f, "brand"), model: str(f, "model"), version: str(f, "version"),
     body: str(f, "body") || "Hatch", year_fab: num(f, "year_fab"), year_model: num(f, "year_model"),
     km: num(f, "km"), fuel: str(f, "fuel") || "Flex", transmission: str(f, "transmission") || "Manual",
@@ -59,7 +59,7 @@ export async function newVehicle(f: FormData) {
 export async function saveVehicle(f: FormData) {
   await requireSession();
   const id = Number(str(f, "id"));
-  updateVehicle(id, {
+  await updateVehicle(id, {
     asking_price: num(f, "asking_price"),
     fipe_price: num(f, "fipe_price") || null,
     min_price: num(f, "min_price") || null,
@@ -80,14 +80,14 @@ export async function addVehicleCost(f: FormData) {
   await requireSession();
   const id = Number(str(f, "vehicle_id"));
   const amount = num(f, "amount");
-  if (amount > 0) addCost(id, str(f, "category") || "Outros", str(f, "description"), amount, str(f, "date") || today());
+  if (amount > 0) await addCost(id, str(f, "category") || "Outros", str(f, "description"), amount, str(f, "date") || today());
   revalidatePath("/erp", "layout");
   redirect(`/erp/veiculos/${id}`);
 }
 
 export async function removeCost(f: FormData) {
   await requireSession();
-  deleteCost(Number(str(f, "cost_id")));
+  await deleteCost(Number(str(f, "cost_id")));
   revalidatePath("/erp", "layout");
   redirect(`/erp/veiculos/${str(f, "vehicle_id")}`);
 }
@@ -96,7 +96,7 @@ export async function registerSale(f: FormData) {
   await requireSession();
   const id = Number(str(f, "vehicle_id"));
   const price = num(f, "sale_price");
-  if (price > 0) sellVehicle(id, price, str(f, "sale_date") || today(), num(f, "commission"));
+  if (price > 0) await sellVehicle(id, price, str(f, "sale_date") || today(), num(f, "commission"));
   revalidatePath("/erp", "layout");
   revalidatePath("/", "layout");
   redirect(`/erp/veiculos/${id}`);
@@ -104,7 +104,7 @@ export async function registerSale(f: FormData) {
 
 export async function changeLead(f: FormData) {
   await requireSession();
-  setLeadStatus(Number(str(f, "id")), str(f, "status"));
+  await setLeadStatus(Number(str(f, "id")), str(f, "status"));
   revalidatePath("/erp/leads");
   redirect("/erp/leads");
 }
@@ -113,7 +113,7 @@ export async function newCashEntry(f: FormData) {
   await requireSession();
   const amount = num(f, "amount");
   if (amount > 0) {
-    addCashEntry({
+    await addCashEntry({
       kind: str(f, "kind") === "receber" ? "receber" : "pagar",
       description: str(f, "description") || "Lançamento", amount, due_date: str(f, "due_date") || today(),
     });
@@ -124,7 +124,7 @@ export async function newCashEntry(f: FormData) {
 
 export async function payCashEntry(f: FormData) {
   await requireSession();
-  toggleCashPaid(Number(str(f, "id")));
+  await toggleCashPaid(Number(str(f, "id")));
   revalidatePath("/erp", "layout");
   redirect("/erp/caixa");
 }

@@ -12,9 +12,9 @@ const categories = ["Mecânica", "Estética", "Funilaria", "Documentação", "Tr
 export default async function Ficha({ params, searchParams }: PageProps<"/erp/veiculos/[id]">) {
   const { id } = await params;
   const sp = await searchParams;
-  const v = vehicleById(Number(id));
+  const v = await vehicleById(Number(id));
   if (!v) notFound();
-  const costs = costsOf(v.id);
+  const costs = await costsOf(v.id);
   const a = v.analysis;
   const sold = v.status === "vendido";
   const today = todayISO();
