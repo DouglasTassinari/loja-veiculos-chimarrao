@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+/* Identidade Chimarrão Veículos (Manual de Identidade Visual v1.0) */
+:root {
+  --background: #f8f5ef; /* branco suave */
+  --foreground: #1f1f1f; /* grafite */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-ink: #1f1f1f; /* grafite: texto e elementos funcionais */
+  --color-brand: #0f3d2e; /* verde pinheiro: cor institucional */
+  --color-brand-dark: #0a2b20;
+  --color-accent: #b06b3a; /* terracota: acento (decoração, ícones, linhas) */
+  --color-wa: #96562b; /* terracota escurecido: fundo de botão com texto branco (contraste AA) */
+  --color-wa-dark: #7e4724;
+  --color-sand: #e7d9c6; /* areia */
+  --color-paper: #f8f5ef;
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+h1, h2, h3 {
+  letter-spacing: -0.01em;
+}
+
+input, select, textarea {
+  border: 1px solid #cdbfa9;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #fff;
+  width: 100%;
+  font-size: 0.9rem;
+}
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid #0f3d2e;
+  outline-offset: 1px;
+}
+input[type="range"] {
+  accent-color: #0f3d2e;
+}
+a:focus-visible, button:focus-visible {
+  outline: 2px solid #b06b3a;
+  outline-offset: 2px;
+}
+label span.lbl {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #4a4a4a;
+  margin-bottom: 0.25rem;
+}
+
+/* Na página do veículo, no celular, a barra fixa de contato substitui o botão flutuante. */
+@media (max-width: 767px) {
+  body:has([data-sticky-cta]) .wa-float {
+    display: none;
+  }
+}
