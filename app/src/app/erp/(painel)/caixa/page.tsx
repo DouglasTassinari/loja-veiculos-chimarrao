@@ -33,10 +33,10 @@ export default async function Caixa() {
             <thead className="text-left text-xs uppercase text-slate-500"><tr><th className="py-2">Vencimento</th><th>Descrição</th><th className="text-right">Valor</th><th /></tr></thead>
             <tbody className="divide-y divide-slate-100">
               {all.map((e) => (
-                <tr key={e.id} className={e.paid ? "opacity-50" : ""}>
+                <tr key={e.id} className={e.paid ? "bg-slate-50 text-slate-500" : ""}>
                   <td className={`py-2 ${!e.paid && e.due_date < today ? "font-bold text-red-600" : ""}`}>{fmtDate(e.due_date)}</td>
                   <td>{e.description}</td>
-                  <td className={`text-right font-semibold ${e.kind === "receber" ? "text-emerald-700" : "text-red-600"}`}>{e.kind === "receber" ? "+" : "−"}{brl(e.amount)}</td>
+                  <td className={`text-right font-semibold ${e.paid ? "text-slate-500" : e.kind === "receber" ? "text-emerald-700" : "text-red-600"}`}>{e.kind === "receber" ? "+" : "−"}{brl(e.amount)}</td>
                   <td className="pl-3 text-right">
                     <form action={payCashEntry}><input type="hidden" name="id" value={e.id} /><button className="text-xs font-semibold text-brand hover:underline">{e.paid ? "reabrir" : e.kind === "receber" ? "recebido" : "pago"}</button></form>
                   </td>

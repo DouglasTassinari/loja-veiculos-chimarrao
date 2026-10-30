@@ -1,79 +1,171 @@
 import type { QueryFn } from "./db";
 import { todayISO, nowTs } from "./finance";
+import rawCatalog from "./catalog.json";
+import { buildSaleTasks } from "./crm";
+import { installment, iofRate } from "./financing";
 
-function daysAgo(n: number): string {
-  return todayISO(-n);
+// Muda quando o catálogo de exemplo muda: o banco de demonstração é refeito sozinho.
+export const SEED_VERSION = "2026-10-30-crm-2";
+
+type Item = {
+  k: "c" | "m"; b: string; m: string; v: string; body: string; y: number; km: number; fu: string; tr: string;
+  col: string; en: string; p: number; st: string; q: string; photos?: string[]; credits?: string[];
+};
+const catalog = rawCatalog as Item[];
+
+// Gerador pseudoaleatório fixo: os dados de exemplo saem iguais a cada vez.
+function rng(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 function slugify(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-type Seed = {
-  plate: string; brand: string; model: string; version: string; body: string;
-  yf: number; ym: number; km: number; fuel: string; trans: string; color: string;
-  engine: string; status: string; published: number; single: number; inspected: number;
-  warranty: number | null; buy: number; buyAgo: number; ask: number; fipe: number;
-  costs: [string, string, number][];
-};
+const SOLD = new Set([3, 9, 14, 21, 28, 35, 42, 47]);
+const RESERVED = new Set([5, 18, 31, 44]);
+const PREP = new Set([7, 25, 38, 52]);
+const FEATURED = ["Toyota Hilux", "Jeep Commander", "Honda Civic", "Toyota Corolla Cross", "Volkswagen T-Cross", "Hyundai Creta", "Fiat Toro", "Honda CB 500X", "Yamaha MT-03", "BMW 320i"];
 
-const vehicles: Seed[] = [
-  { plate: "JDN1A85", brand: "Peugeot", model: "2008", version: "Active T200 Turbo", body: "SUV", yf: 2025, ym: 2025, km: 18000, fuel: "Flex", trans: "Automático", color: "Preta", engine: "1.0 Turbo 130cv", status: "disponivel", published: 1, single: 1, inspected: 1, warranty: 2028, buy: 96000, buyAgo: 12, ask: 109900, fipe: 112300, costs: [["Documentação", "Transferência + vistoria", 900], ["Estética", "Polimento e higienização", 450]] },
-  { plate: "RTA2B33", brand: "Fiat", model: "Argo", version: "Drive 1.3", body: "Hatch", yf: 2024, ym: 2024, km: 32000, fuel: "Flex", trans: "Manual", color: "Branca", engine: "1.3 Firefly 107cv", status: "disponivel", published: 1, single: 0, inspected: 1, warranty: null, buy: 71500, buyAgo: 38, ask: 84900, fipe: 82900, costs: [["Mecânica", "Troca de pastilhas e fluido", 780], ["Documentação", "Transferência", 600], ["Estética", "Lavagem técnica", 300]] },
-  { plate: "IXY4C21", brand: "Jeep", model: "Compass", version: "Longitude T270 Turbo", body: "SUV", yf: 2022, ym: 2023, km: 54000, fuel: "Flex", trans: "Automático", color: "Cinza", engine: "1.3 Turbo 185cv", status: "disponivel", published: 1, single: 1, inspected: 1, warranty: null, buy: 118000, buyAgo: 71, ask: 133900, fipe: 128500, costs: [["Mecânica", "Revisão completa", 1850], ["Funilaria", "Reparo para-choque", 1400], ["Documentação", "Transferência", 700]] },
-  { plate: "QWE5D77", brand: "Volkswagen", model: "T-Cross", version: "Highline 250 TSI", body: "SUV", yf: 2024, ym: 2024, km: 44000, fuel: "Flex", trans: "Automático", color: "Prata", engine: "1.4 TSI 150cv", status: "disponivel", published: 1, single: 0, inspected: 0, warranty: null, buy: 118500, buyAgo: 22, ask: 132900, fipe: 131200, costs: [["Documentação", "Transferência", 650], ["Estética", "Polimento", 500]] },
-  { plate: "KLM6E90", brand: "Honda", model: "City", version: "EXL 1.5", body: "Sedã", yf: 2023, ym: 2023, km: 53000, fuel: "Flex", trans: "Automático", color: "Branca", engine: "1.5 i-VTEC 126cv", status: "disponivel", published: 1, single: 1, inspected: 1, warranty: null, buy: 94000, buyAgo: 9, ask: 105900, fipe: 108000, costs: [["Documentação", "Transferência", 600]] },
-  { plate: "BRA7F12", brand: "Hyundai", model: "HB20", version: "Comfort 1.0", body: "Hatch", yf: 2016, ym: 2016, km: 88000, fuel: "Flex", trans: "Manual", color: "Vermelha", engine: "1.0 Flex 80cv", status: "disponivel", published: 1, single: 0, inspected: 0, warranty: null, buy: 46000, buyAgo: 94, ask: 52900, fipe: 49800, costs: [["Mecânica", "Embreagem", 1900], ["Estética", "Reparo de pintura", 1100], ["Documentação", "Transferência + multas", 1350]] },
-  { plate: "CHV8G45", brand: "Chevrolet", model: "Onix", version: "Premier Plus Turbo", body: "Sedã", yf: 2024, ym: 2024, km: 60000, fuel: "Flex", trans: "Automático", color: "Preta", engine: "1.0 Turbo 116cv", status: "preparacao", published: 0, single: 0, inspected: 0, warranty: null, buy: 80500, buyAgo: 11, ask: 93900, fipe: 92500, costs: [["Mecânica", "Orçamento oficina (pendente)", 1200]] },
-  { plate: "TOY9H08", brand: "Toyota", model: "Yaris", version: "XS Connect Multidrive", body: "Hatch", yf: 2024, ym: 2024, km: 65000, fuel: "Flex", trans: "Automático", color: "Cinza", engine: "1.5 Dual VVT-i 110cv", status: "reservado", published: 1, single: 0, inspected: 1, warranty: null, buy: 84000, buyAgo: 17, ask: 97900, fipe: 96800, costs: [["Documentação", "Transferência", 600], ["Estética", "Higienização", 350]] },
-  { plate: "NSN1J66", brand: "Nissan", model: "Kicks", version: "Exclusive", body: "SUV", yf: 2022, ym: 2022, km: 30000, fuel: "Flex", trans: "Automático", color: "Branca", engine: "1.6 CVT 114cv", status: "vendido", published: 0, single: 1, inspected: 1, warranty: null, buy: 83000, buyAgo: 40, ask: 97900, fipe: 95000, costs: [["Documentação", "Transferência", 600], ["Mecânica", "Revisão", 900], ["Comissão", "Comissão vendedor", 1200]] },
-];
+const round = (n: number, to: number) => Math.round(n / to) * to;
 
 // Dados de exemplo para demonstração. Em produção real, não semear (SEED_DEMO != 1).
 export async function seed(q: QueryFn): Promise<void> {
-  for (let i = 0; i < vehicles.length; i++) {
-    const v = vehicles[i];
-    const sold = v.status === "vendido";
+  const r = rng(20261030);
+  const between = (a: number, b: number) => a + r() * (b - a);
+  const letters = "ABCDEFGHJKLMNPRSTUVWXYZ";
+  const L = () => letters[Math.floor(r() * letters.length)];
+  const D = () => Math.floor(r() * 10);
+
+  const ids: { id: number; status: string; price: number; title: string }[] = [];
+  const soldInfo: { id: number; title: string; price: number; date: string }[] = [];
+
+  for (let i = 0; i < catalog.length; i++) {
+    const c = catalog[i];
+    const n = i + 1;
+    const status = SOLD.has(n) ? "vendido" : RESERVED.has(n) ? "reservado" : PREP.has(n) ? "preparacao" : "disponivel";
+    const age = 2026 - c.y;
+    const slowMover = c.p < 45000 && !SOLD.has(n) && n % 2 === 0;
+    const buyAgo = status === "vendido" ? Math.round(between(32, 62)) : status === "preparacao" ? Math.round(between(3, 11)) : status === "reservado" ? Math.round(between(12, 40)) : slowMover ? Math.round(between(66, 112)) : Math.round(between(4, 58));
+    const price = c.p;
+    const buy = round(price * between(0.84, 0.935), 100);
+    const fipe = round(price * between(0.97, 1.05), 100);
+    const published = status === "disponivel" || status === "reservado" ? 1 : 0;
+    const featured = status === "disponivel" && FEATURED.includes(`${c.b} ${c.m}`) ? 1 : 0;
+    const inspected = r() < 0.6 ? 1 : 0;
+    const single = r() < 0.35 ? 1 : 0;
+    const warranty = c.y >= 2022 && c.k === "c" && r() < 0.7 ? c.y + 3 : null;
+    const sold = status === "vendido";
+    const saleAgo = sold ? Math.round(between(2, Math.min(buyAgo - 6, 33))) : 0;
+    const saleDate = sold ? todayISO(-saleAgo) : null;
+    const salePrice = sold ? round(price * between(0.95, 0.99), 100) : null;
+    const plate = `${L()}${L()}${L()}${D()}${L()}${D()}${D()}`;
+    const photos = c.photos ?? [];
+    const title = `${c.b} ${c.m} ${c.v}`.trim();
+
     const [row] = (await q(
-      `INSERT INTO vehicles (slug, plate, brand, model, version, body, year_fab, year_model, km, fuel,
-        transmission, color, doors, engine, description, status, published, single_owner, inspected,
+      `INSERT INTO vehicles (slug, plate, kind, brand, model, version, body, year_fab, year_model, km, fuel,
+        transmission, color, doors, engine, description, status, published, featured, single_owner, inspected,
         factory_warranty_until, purchase_price, purchase_date, asking_price, fipe_price, min_price,
-        sale_price, sale_date, ready_date, photos, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,4,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,'[]',$28)
+        sale_price, sale_date, ready_date, photos, photo_credit, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33)
        RETURNING id`,
       [
-        `${slugify(`${v.brand} ${v.model} ${v.version} ${v.ym}`)}-${i + 1}`, v.plate, v.brand, v.model, v.version, v.body,
-        v.yf, v.ym, v.km, v.fuel, v.trans, v.color, v.engine,
-        `${v.brand} ${v.model} ${v.version}, ${v.km.toLocaleString("pt-BR")} km, ${v.trans.toLowerCase()}. Fale com a equipe para ver os detalhes e combinar uma visita.`,
-        v.status, v.published, v.single, v.inspected, v.warranty,
-        v.buy, daysAgo(v.buyAgo), v.ask, v.fipe, Math.round(v.ask * 0.96),
-        sold ? v.ask - 1500 : null, sold ? daysAgo(5) : null,
-        v.status === "preparacao" ? null : daysAgo(Math.max(v.buyAgo - 4, 0)), nowTs(),
+        `${slugify(`${title} ${c.y}`)}-${n}`, plate, c.k === "m" ? "moto" : "carro", c.b, c.m, c.v, c.body,
+        n % 3 === 0 ? c.y - 1 : c.y, c.y, c.km, c.fu, c.tr, c.col, c.k === "m" ? 0 : c.body === "Picape" && age > 6 ? 2 : 4, c.en,
+        `${title} ${c.y}, ${c.km.toLocaleString("pt-BR")} km, ${c.tr.toLowerCase()}, ${c.fu.toLowerCase()}. Fale com a equipe para ver os detalhes e combinar uma visita.`,
+        status, published, featured, single, inspected, warranty,
+        buy, todayISO(-buyAgo), price, fipe, round(price * 0.96, 100),
+        salePrice, saleDate, status === "preparacao" ? null : todayISO(-Math.max(buyAgo - 4, 0)),
+        JSON.stringify(photos), JSON.stringify(c.credits ?? []), nowTs(),
       ],
     )) as { id: number }[];
-    for (const [cat, desc, amt] of v.costs) {
-      await q("INSERT INTO costs (vehicle_id, category, description, amount, date) VALUES ($1,$2,$3,$4,$5)", [row.id, cat, desc, amt, daysAgo(Math.max(v.buyAgo - 2, 0))]);
+    ids.push({ id: row.id, status, price, title });
+    if (sold && salePrice && saleDate) soldInfo.push({ id: row.id, title: `${title} ${c.y}`, price: salePrice, date: saleDate });
+
+    // Custos de preparação: crescem com a idade e a quilometragem.
+    const costs: [string, string, number][] = [["Documentação", "Transferência e vistoria", round(between(450, 900), 10)]];
+    if (r() < 0.75) costs.push(["Estética", "Polimento e higienização", round(between(200, 800), 10)]);
+    if (r() < 0.35 + Math.min(age * 0.04, 0.4)) costs.push(["Mecânica", "Revisão e peças", round(between(300, 600 + age * 160 + c.km / 90), 10)]);
+    if (r() < 0.2) costs.push(["Funilaria", "Reparo de pintura", round(between(600, 2200), 10)]);
+    if (sold) costs.push(["Comissão", "Comissão do vendedor", round((salePrice ?? price) * 0.01, 10)]);
+    for (const [cat, desc, amt] of costs) {
+      await q("INSERT INTO costs (vehicle_id, category, description, amount, date) VALUES ($1,$2,$3,$4,$5)", [row.id, cat, desc, amt, todayISO(-Math.max(buyAgo - 2, 0))]);
     }
   }
 
-  const hoursAgo = (h: number) => nowTs(new Date(Date.now() - h * 3600e3));
-  const L = "INSERT INTO leads (vehicle_id, name, phone, message, source, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)";
-  await q(L, [1, "Carlos Silva", "(51) 98888-1111", "Aceita meu Gol na troca?", "site", "novo", hoursAgo(3)]);
-  await q(L, [2, "Marina Souza", "(51) 97777-2222", "Qual a entrada mínima?", "webmotors", "contatado", hoursAgo(30)]);
-  await q(L, [8, "João Pereira", "(51) 96666-3333", "Quero fechar hoje.", "site", "negociacao", hoursAgo(52)]);
+  const avail = ids.filter((v) => v.status === "disponivel" || v.status === "reservado");
+  const sold = ids.filter((v) => v.status === "vendido");
 
-  const E = "INSERT INTO cash_entries (kind, description, amount, due_date, paid, vehicle_id) VALUES ($1,$2,$3,$4,0,$5)";
-  const inDays = (n: number) => todayISO(n);
-  await q(E, ["receber", "Venda Kicks — retorno financiamento", 3200, inDays(6), 9]);
-  await q(E, ["receber", "Venda Kicks — saldo restante", 12000, inDays(2), 9]);
-  await q(E, ["pagar", "Compra Onix Premier (parcela)", 20000, inDays(4), 7]);
-  await q(E, ["pagar", "Aluguel do pátio", 6500, inDays(9), null]);
-  await q(E, ["pagar", "Folha / comissões", 11000, inDays(14), null]);
-  await q(E, ["pagar", "Anúncios (portais + Meta)", 3800, inDays(20), null]);
-  await q(E, ["receber", "Entrada reserva Yaris", 5000, inDays(1), 8]);
+  const hoursAgo = (h: number) => nowTs(new Date(Date.now() - h * 3600e3));
+  const L_ = "INSERT INTO leads (vehicle_id, name, phone, message, source, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)";
+  const people = ["Carlos Silva", "Marina Souza", "João Pereira", "Ana Lima", "Rafael Costa", "Patrícia Alves", "Bruno Martins", "Fernanda Rocha", "Diego Oliveira", "Camila Duarte", "Lucas Ferreira", "Juliana Mendes", "Tiago Ribeiro", "Aline Barros"];
+  const msgs = ["Aceita meu carro na troca?", "Qual a entrada mínima?", "Ainda está disponível?", "Quero ver o carro amanhã.", "Dá para parcelar em 48x?", "Tem mais fotos?", "Faz financiamento?", "Qual o menor valor à vista?"];
+  const sources = ["site", "site", "chat", "webmotors", "olx", "instagram", "site", "chat"];
+  const stages = ["novo", "novo", "novo", "contatado", "contatado", "visita", "proposta", "negociacao", "ganho", "perdido", "novo", "contatado", "proposta", "visita"];
+  for (let i = 0; i < people.length; i++) {
+    const v = avail[Math.floor(r() * avail.length)];
+    await q(L_, [v.id, people[i], `(51) 9${D()}${D()}${D()}${D()}-${D()}${D()}${D()}${D()}`, msgs[i % msgs.length], sources[i % sources.length], stages[i % stages.length], hoursAgo(Math.round(between(1, 150)))]);
+  }
+
+  // --- CRM: clientes, vendas (algumas financiadas) e as tarefas que nascem delas ---
+  type Hist = { name: string; title: string; ago: number; pay: string; months: number; price: number; id?: number };
+  const buyers = ["Eduardo Nunes", "Priscila Moraes", "Fábio Antunes", "Larissa Pinto", "Henrique Dias", "Vanessa Cardoso", "Rogério Lemos", "Tatiane Freitas"];
+  const payPattern = ["financiado", "avista", "troca_financiado", "financiado", "avista", "financiado", "troca", "financiado"];
+  const monthsPattern = [48, 0, 36, 60, 0, 48, 0, 24];
+  const sales: Hist[] = [
+    ...soldInfo.map((s, i) => ({ name: buyers[i % buyers.length], title: s.title, ago: Math.max(Math.round((Date.parse(todayISO()) - Date.parse(s.date)) / 86400000), 1), pay: payPattern[i % 8], months: monthsPattern[i % 8], price: s.price, id: s.id })),
+    { name: "Ricardo Almeida", title: "Honda Civic LXR 2016", ago: 1370, pay: "financiado", months: 48, price: 78900 },
+    { name: "Luciana Prado", title: "Fiat Argo Drive 2018", ago: 1065, pay: "financiado", months: 36, price: 56900 },
+    { name: "Marcelo Teixeira", title: "Fiat Argo Trekking 2023", ago: 335, pay: "financiado", months: 60, price: 88900 },
+    { name: "Sérgio Vargas", title: "Toyota Corolla XEi 2019", ago: 183, pay: "avista", months: 0, price: 101900 },
+    { name: "Débora Klein", title: "Jeep Renegade Sport 2020", ago: 27, pay: "financiado", months: 48, price: 92900 },
+    { name: "Gustavo Melo", title: "Honda CG 160 Titan 2023", ago: 8, pay: "avista", months: 0, price: 15900 },
+  ];
+  const banks = ["Banco BV", "Santander", "Itaú", "Banrisul", "Bradesco"];
+  for (let i = 0; i < sales.length; i++) {
+    const s = sales[i];
+    const date = todayISO(-s.ago);
+    const phone = `(51) 9${D()}${D()}${D()}${D()}-${D()}${D()}${D()}${D()}`;
+    const birth = `19${70 + Math.floor(r() * 30)}-${String(1 + Math.floor(r() * 12)).padStart(2, "0")}-${String(1 + Math.floor(r() * 27)).padStart(2, "0")}`;
+    const [cust] = (await q("INSERT INTO customers (name, phone, email, birthday, notes, source, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id", [s.name, phone, "", birth, i % 3 === 0 ? "Prefere contato por WhatsApp à tarde." : "", i % 2 ? "loja" : "site", nowTs(new Date(Date.parse(date)))])) as { id: number }[];
+    const financed = s.months > 0;
+    const down = financed ? round(s.price * 0.3, 500) : s.pay === "troca" ? round(s.price * 0.4, 500) : s.price;
+    const base = financed ? s.price - down : 0;
+    const parcel = financed ? installment(base * (1 + iofRate(s.months)), 0.0189, s.months) : 0;
+    const tradeValue = s.pay.startsWith("troca") ? round(s.price * 0.25, 500) : 0;
+    const [sale] = (await q(
+      `INSERT INTO sales (vehicle_id, vehicle_title, customer_id, lead_id, sale_date, price, payment, down, financed, months, parcel, bank, trade_desc, trade_value, notes, created_at)
+       VALUES ($1,$2,$3,NULL,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'',$14) RETURNING id`,
+      [s.id ?? null, s.title, cust.id, date, s.price, s.pay, down, financed ? base : 0, s.months, parcel, financed ? banks[i % banks.length] : "", tradeValue ? "Veículo usado na troca" : "", tradeValue, nowTs()],
+    )) as { id: number }[];
+    for (const t of buildSaleTasks({ sale_date: date, payment: s.pay, months: s.months, vehicle_title: s.title, price: s.price })) {
+      // tarefas antigas já feitas; as de hoje para a frente (e algumas atrasadas) ficam abertas para mostrar a agenda
+      const done = t.due_date < todayISO(-9) ? 1 : 0;
+      await q(
+        "INSERT INTO tasks (customer_id, vehicle_id, sale_id, lead_id, kind, title, note, due_date, done, done_at, created_at) VALUES ($1,$2,$3,NULL,$4,$5,$6,$7,$8,$9,$10)",
+        [cust.id, s.id ?? null, sale.id, t.kind, t.title, t.note, t.due_date, done, done ? `${t.due_date} 12:00:00` : null, nowTs()],
+      );
+    }
+  }
+
+  const E = "INSERT INTO cash_entries (kind, description, amount, due_date, paid, vehicle_id) VALUES ($1,$2,$3,$4,$5,$6)";
+  for (const v of sold.slice(0, 5)) {
+    await q(E, ["receber", `Retorno de financiamento — ${v.title}`, round(v.price * 0.03, 100), todayISO(Math.round(between(1, 18))), 0, v.id]);
+  }
+  for (const v of avail.filter((x) => x.status === "reservado")) {
+    await q(E, ["receber", `Entrada da reserva — ${v.title}`, round(v.price * 0.1, 100), todayISO(Math.round(between(1, 6))), 0, v.id]);
+  }
+  const fixed: [string, number, number][] = [
+    ["Aluguel do pátio", 6500, 9], ["Folha e comissões", 11800, 14], ["Anúncios (portais + Meta)", 3800, 20],
+    ["Energia e água", 1250, 12], ["Contador", 1800, 25], ["Seguro do pátio", 2100, 28],
+  ];
+  for (const [d, a, days] of fixed) await q(E, ["pagar", d, a, todayISO(days), 0, null]);
+  for (const v of avail.slice(0, 3)) await q(E, ["pagar", `Parcela de compra — ${v.title}`, round(v.price * 0.18, 100), todayISO(Math.round(between(3, 22))), 0, v.id]);
 }

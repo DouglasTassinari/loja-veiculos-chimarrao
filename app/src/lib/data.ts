@@ -1,11 +1,13 @@
 import "server-only";
 import { q, q1 } from "./db";
 import { analyze, alerts, nextAction, nowTs, parsePhotos, todayISO, type VehicleRow, type Analysis, type Alert, type Status } from "./finance";
+import type { VehicleLite } from "./chat/types";
 
 export type CostRow = { id: number; vehicle_id: number; category: string; description: string; amount: number; date: string };
 export type LeadRow = {
   id: number; vehicle_id: number | null; name: string; phone: string; message: string;
   source: string; status: string; created_at: string; vehicle_title?: string | null;
+  customer_id?: number | null; updated_at?: string;
 };
 export type CashRow = { id: number; kind: "receber" | "pagar"; description: string; amount: number; due_date: string; paid: number; vehicle_id: number | null };
 
@@ -44,7 +46,18 @@ export async function vehicleBySlug(slug: string): Promise<VehicleView | null> {
   return toView(v, (await extraCostMap()).get(v.id) ?? 0);
 }
 
-export type StoreFilter = { q?: string; brand?: string; body?: string; maxPrice?: number; trans?: string; sort?: string };
+// Só o que é público: nunca custo, margem ou dados de compra (o assistente roda no navegador do cliente).
+export async function chatVehicles(): Promise<VehicleLite[]> {
+  return (await allVehicles())
+    .filter((v) => v.published && v.status === "disponivel")
+    .map((v) => ({
+      id: v.id, slug: v.slug, kind: v.kind, brand: v.brand, model: v.model, version: v.version, body: v.body, year: v.year_model,
+      km: v.km, trans: v.transmission, fuel: v.fuel, engine: v.engine, color: v.color, price: v.asking_price, fipe: v.fipe_price,
+      featured: !!v.featured, inspected: !!v.inspected, single: !!v.single_owner, warranty: v.factory_warranty_until, photo: v.photoList[0] ?? null,
+    }));
+}
+
+export type StoreFilter = { q?: string; brand?: string; body?: string; maxPrice?: number; trans?: string; sort?: string; kind?: string };
 
 // Vitrine pública: só o que está publicado. Vendidos ficam visíveis (prova de giro), sem preço.
 export async function publicVehicles(f: StoreFilter = {}): Promise<VehicleView[]> {
@@ -53,6 +66,7 @@ export async function publicVehicles(f: StoreFilter = {}): Promise<VehicleView[]
     const term = f.q.toLowerCase();
     list = list.filter((v) => `${v.brand} ${v.model} ${v.version} ${v.body} ${v.year_model}`.toLowerCase().includes(term));
   }
+  if (f.kind === "carro" || f.kind === "moto") list = list.filter((v) => v.kind === f.kind);
   if (f.brand) list = list.filter((v) => v.brand === f.brand);
   if (f.body) list = list.filter((v) => v.body === f.body);
   if (f.trans) list = list.filter((v) => v.transmission === f.trans);
@@ -65,7 +79,9 @@ export async function publicVehicles(f: StoreFilter = {}): Promise<VehicleView[]
     "menor-km": (a, b) => a.km - b.km,
   };
   const s = sorters[f.sort ?? ""];
-  return list.sort((a, b) => avail(a) - avail(b) || (s ? s(a, b) : b.id - a.id));
+  // Ordem padrão: disponíveis, destaques, carros antes de motos e os mais recentes no estoque.
+  const base = (a: VehicleView, b: VehicleView) => b.featured - a.featured || (a.kind === b.kind ? 0 : a.kind === "carro" ? -1 : 1) || b.id - a.id;
+  return list.sort((a, b) => avail(a) - avail(b) || (s ? s(a, b) : base(a, b)));
 }
 
 export function costsOf(vehicleId: number): Promise<CostRow[]> {
@@ -83,7 +99,7 @@ export async function deleteCost(id: number) {
 export type NewVehicle = {
   plate: string; brand: string; model: string; version: string; body: string; year_fab: number; year_model: number;
   km: number; fuel: string; transmission: string; color: string; engine: string; purchase_price: number;
-  purchase_date: string; asking_price: number; fipe_price: number | null;
+  purchase_date: string; asking_price: number; fipe_price: number | null; kind: "carro" | "moto";
 };
 
 function slugify(s: string): string {
@@ -94,19 +110,19 @@ export async function createVehicle(v: NewVehicle): Promise<number> {
   const slug = `${slugify(`${v.brand} ${v.model} ${v.version} ${v.year_model}`)}-${Date.now().toString(36)}`;
   const [row] = await q<{ id: number }>(
     `INSERT INTO vehicles (slug, plate, brand, model, version, body, year_fab, year_model, km, fuel, transmission, color, engine,
-       description, status, published, purchase_price, purchase_date, asking_price, fipe_price, min_price, photos, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'preparacao',0,$15,$16,$17,$18,$19,'[]',$20)
+       description, status, published, purchase_price, purchase_date, asking_price, fipe_price, min_price, photos, created_at, kind)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'preparacao',0,$15,$16,$17,$18,$19,'[]',$20,$21)
      RETURNING id`,
     [
       slug, v.plate.toUpperCase(), v.brand, v.model, v.version, v.body, v.year_fab, v.year_model, v.km, v.fuel,
       v.transmission, v.color, v.engine, `${v.brand} ${v.model} ${v.version}, ${v.km.toLocaleString("pt-BR")} km.`,
-      v.purchase_price, v.purchase_date, v.asking_price, v.fipe_price, Math.round(v.asking_price * 0.96), nowTs(),
+      v.purchase_price, v.purchase_date, v.asking_price, v.fipe_price, Math.round(v.asking_price * 0.96), nowTs(), v.kind,
     ],
   );
   return Number(row.id);
 }
 
-export async function updateVehicle(id: number, f: { asking_price?: number; fipe_price?: number | null; min_price?: number | null; status?: Status; published?: boolean; description?: string; photos?: string[]; single_owner?: boolean; inspected?: boolean; factory_warranty_until?: number | null }) {
+export async function updateVehicle(id: number, f: { asking_price?: number; fipe_price?: number | null; min_price?: number | null; status?: Status; published?: boolean; description?: string; photos?: string[]; single_owner?: boolean; inspected?: boolean; featured?: boolean; factory_warranty_until?: number | null }) {
   const sets: string[] = [];
   const vals: (string | number | null)[] = [];
   const add = (col: string, val: string | number | null) => { vals.push(val); sets.push(`${col} = $${vals.length}`); };
@@ -122,6 +138,7 @@ export async function updateVehicle(id: number, f: { asking_price?: number; fipe
   if (f.photos !== undefined) add("photos", JSON.stringify(f.photos));
   if (f.single_owner !== undefined) add("single_owner", f.single_owner ? 1 : 0);
   if (f.inspected !== undefined) add("inspected", f.inspected ? 1 : 0);
+  if (f.featured !== undefined) add("featured", f.featured ? 1 : 0);
   if (f.factory_warranty_until !== undefined) add("factory_warranty_until", f.factory_warranty_until);
   if (!sets.length) return;
   vals.push(id);
@@ -133,8 +150,29 @@ export async function sellVehicle(id: number, price: number, date: string, commi
   if (commission > 0) await addCost(id, "Comissão", "Comissão do vendedor", commission, date);
 }
 
-export async function createLead(l: { vehicle_id: number | null; name: string; phone: string; message: string; source: string }) {
-  await q("INSERT INTO leads (vehicle_id, name, phone, message, source, created_at) VALUES ($1,$2,$3,$4,$5,$6)", [l.vehicle_id, l.name, l.phone, l.message, l.source, nowTs()]);
+export async function createLead(l: { vehicle_id: number | null; name: string; phone: string; message: string; source: string }): Promise<number> {
+  const [row] = await q<{ id: number }>(
+    "INSERT INTO leads (vehicle_id, name, phone, message, source, created_at) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id",
+    [l.vehicle_id, l.name, l.phone, l.message, l.source, nowTs()],
+  );
+  return Number(row.id);
+}
+
+// Mesmo telefone, veículo e origem nos últimos 6 horas: reaproveita o lead em vez de duplicar.
+export async function findRecentLead(phone: string, vehicleId: number | null, source: string): Promise<number | null> {
+  const since = nowTs(new Date(Date.now() - 6 * 3600e3));
+  const row = await q1<{ id: number }>(
+    "SELECT id FROM leads WHERE phone = $1 AND source = $2 AND COALESCE(vehicle_id, 0) = $3 AND created_at >= $4 ORDER BY id DESC",
+    [phone, source, vehicleId ?? 0, since],
+  );
+  return row ? Number(row.id) : null;
+}
+
+export async function appendLeadMessage(id: number, text: string) {
+  const row = await q1<{ message: string }>("SELECT message FROM leads WHERE id = $1", [id]);
+  if (!row) return;
+  const next = [row.message, text].filter(Boolean).join("\n").slice(-1500);
+  await q("UPDATE leads SET message = $1 WHERE id = $2", [next, id]);
 }
 
 export function leads(): Promise<LeadRow[]> {

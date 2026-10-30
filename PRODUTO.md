@@ -87,3 +87,20 @@ Cada veículo guarda seus anúncios externos (Webmotors, OLX, iCarros, Mercado L
 3. Site público com vitrine, página do veículo e WhatsApp
 4. Leads/CRM básico
 5. Financeiro e vendas completos
+
+## Segunda etapa: assistente, simulador e CRM (30/10/2026)
+
+**Por que.** O site captava pouco contato e o relacionamento depois da venda dependia da memória do vendedor. A dor, nas palavras das lojas: o cliente some depois do primeiro contato e ninguém lembra de procurar quem comprou há anos.
+
+**Assistente virtual (só regras, sem IA).** Entende o pedido em português do dia a dia (tipo, orçamento, uso, câmbio, entrada, parcela desejada), pergunta só o que falta, sugere os veículos que mais combinam explicando o motivo e monta o orçamento. O contato (nome, WhatsApp, autorização) é pedido na hora em que o cliente quer o orçamento, não antes. Não inventa: horário, garantia e aprovação de crédito só são ditos quando a loja confirmou. Não tem acesso a custo, margem nem preço mínimo.
+
+**Simulador próprio.** Sem redirecionar para banco. Taxas de referência vindas do Banco Central (média por banco para financiamento de veículos), mostradas como faixa; CET e IOF calculados. Nome e WhatsApp antes de ver o resultado: cada simulação vira um lead com o valor simulado anexado.
+
+**CRM no mesmo sistema do ERP.**
+- Funil arrastável: novo → contatado → visita → proposta → negociação → ganho/perdido; cartões parados há mais de 2 dias ficam em vermelho.
+- Venda registrada a partir do lead: cria o cliente, baixa o veículo, guarda forma de pagamento, prazo e banco.
+- **Tarefas automáticas**: pós-venda em 7 e 30 dias, revisão em 6 meses, aniversário da compra e, se foi financiado, aviso 90 dias e 15 dias antes do fim do financiamento (oportunidade de renovar) e um lembrete de troca para compras à vista. Cada tarefa traz a mensagem pronta para o WhatsApp.
+
+**Regras de conteúdo (mantidas).** Nada de feirões, prêmios, certificações ou licenças inventados: ficam ocultos até a loja confirmar e, na demonstração, aparecem marcados como exemplo.
+
+**Fora desta etapa:** integração com portais (Webmotors, OLX, iCarros), emissão de contrato e usuários com perfis diferentes.

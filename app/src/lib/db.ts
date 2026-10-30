@@ -2,10 +2,10 @@ import "server-only";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import postgres from "postgres";
-import { seed } from "./seed";
+import { seed, SEED_VERSION } from "./seed";
 
 // Dois bancos, um só SQL:
-//  - DATABASE_URL definido  -> PostgreSQL (produção, Vercel/Neon/Supabase)
+//  - DATABASE_URL definido  -> PostgreSQL (produção, Render/Neon/Supabase)
 //  - sem DATABASE_URL       -> SQLite local em data/loja.db (desenvolvimento)
 // As consultas usam placeholders $1, $2… e só tipos que existem nos dois.
 export type Row = Record<string, unknown>;
@@ -20,6 +20,7 @@ const schema = `
     id {ID},
     slug TEXT UNIQUE NOT NULL,
     plate TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'carro',
     brand TEXT NOT NULL,
     model TEXT NOT NULL,
     version TEXT NOT NULL DEFAULT '',
@@ -35,6 +36,7 @@ const schema = `
     description TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'preparacao',
     published INTEGER NOT NULL DEFAULT 0,
+    featured INTEGER NOT NULL DEFAULT 0,
     single_owner INTEGER NOT NULL DEFAULT 0,
     inspected INTEGER NOT NULL DEFAULT 0,
     factory_warranty_until INTEGER,
@@ -47,6 +49,7 @@ const schema = `
     sale_date TEXT,
     ready_date TEXT,
     photos TEXT NOT NULL DEFAULT '[]',
+    photo_credit TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL DEFAULT ''
   );
   CREATE TABLE IF NOT EXISTS costs (
@@ -76,9 +79,81 @@ const schema = `
     paid INTEGER NOT NULL DEFAULT 0,
     vehicle_id INTEGER REFERENCES vehicles(id) ON DELETE SET NULL
   );
+  CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS customers (
+    id {ID},
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    email TEXT NOT NULL DEFAULT '',
+    birthday TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    source TEXT NOT NULL DEFAULT 'loja',
+    created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS sales (
+    id {ID},
+    vehicle_id INTEGER REFERENCES vehicles(id) ON DELETE SET NULL,
+    vehicle_title TEXT NOT NULL,
+    customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    lead_id INTEGER,
+    sale_date TEXT NOT NULL,
+    price DOUBLE PRECISION NOT NULL,
+    payment TEXT NOT NULL DEFAULT 'avista',
+    down DOUBLE PRECISION NOT NULL DEFAULT 0,
+    financed DOUBLE PRECISION NOT NULL DEFAULT 0,
+    months INTEGER NOT NULL DEFAULT 0,
+    parcel DOUBLE PRECISION NOT NULL DEFAULT 0,
+    bank TEXT NOT NULL DEFAULT '',
+    trade_desc TEXT NOT NULL DEFAULT '',
+    trade_value DOUBLE PRECISION NOT NULL DEFAULT 0,
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS tasks (
+    id {ID},
+    customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+    vehicle_id INTEGER,
+    sale_id INTEGER REFERENCES sales(id) ON DELETE CASCADE,
+    lead_id INTEGER,
+    kind TEXT NOT NULL,
+    title TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    due_date TEXT NOT NULL,
+    done INTEGER NOT NULL DEFAULT 0,
+    done_at TEXT,
+    created_at TEXT NOT NULL
+  );
 `;
 
-const shouldSeed = () => process.env.NODE_ENV !== "production" || process.env.SEED_DEMO === "1";
+// Colunas acrescentadas depois da primeira versão. Bancos já existentes recebem aqui.
+const addedColumns: [string, string, string][] = [
+  ["vehicles", "kind", "TEXT NOT NULL DEFAULT 'carro'"],
+  ["vehicles", "featured", "INTEGER NOT NULL DEFAULT 0"],
+  ["vehicles", "photo_credit", "TEXT NOT NULL DEFAULT '[]'"],
+  ["leads", "customer_id", "INTEGER"],
+  ["leads", "updated_at", "TEXT NOT NULL DEFAULT ''"],
+];
+
+// Dados de demonstração: só em desenvolvimento ou com SEED_DEMO=1 (nunca na loja real).
+const demoEnabled = () => process.env.NODE_ENV !== "production" || process.env.SEED_DEMO === "1";
+
+async function prepareDemo(q: QueryFn, dialect: "pg" | "sqlite") {
+  if (!demoEnabled()) return;
+  const meta = await q("SELECT value FROM meta WHERE key = 'seed_version'");
+  if (meta[0]?.value === SEED_VERSION) return;
+  // Versão do catálogo mudou (ou banco antigo sem versão): refaz os dados de exemplo.
+  if (dialect === "pg") await q("TRUNCATE tasks, sales, customers, cash_entries, leads, costs, vehicles RESTART IDENTITY CASCADE");
+  else {
+    for (const t of ["tasks", "sales", "customers", "cash_entries", "leads", "costs", "vehicles"]) await q(`DELETE FROM ${t}`);
+    await q("DELETE FROM sqlite_sequence");
+  }
+  await seed(q);
+  await q("DELETE FROM meta WHERE key = 'seed_version'");
+  await q("INSERT INTO meta (key, value) VALUES ('seed_version', $1)", [SEED_VERSION]);
+}
 
 async function openPg(url: string): Promise<Conn> {
   // max 1 e prepare:false: funciona com poolers (Neon/Supabase) em funções serverless.
@@ -87,11 +162,11 @@ async function openPg(url: string): Promise<Conn> {
   for (const stmt of schema.replace(/\{ID\}/g, "SERIAL PRIMARY KEY").split(";").map((s) => s.trim()).filter(Boolean)) {
     await sql.unsafe(stmt);
   }
-  if (shouldSeed()) {
+  for (const [table, col, ddl] of addedColumns) await sql.unsafe(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${col} ${ddl}`);
+  if (demoEnabled()) {
     await sql.begin(async (tx) => {
       await tx.unsafe("SELECT pg_advisory_xact_lock(731100)"); // evita semear em dobro com várias instâncias subindo juntas
-      const [{ n }] = (await tx.unsafe("SELECT CAST(COUNT(*) AS INTEGER) AS n FROM vehicles")) as unknown as { n: number }[];
-      if (n === 0) await seed(async (t, p = []) => (await tx.unsafe(t, p as never[])) as unknown as Row[]);
+      await prepareDemo(async (t, p = []) => (await tx.unsafe(t, p as never[])) as unknown as Row[], "pg");
     });
   }
   return { query, dialect: "pg" };
@@ -99,20 +174,22 @@ async function openPg(url: string): Promise<Conn> {
 
 async function openSqlite(): Promise<Conn> {
   const { DatabaseSync } = await import("node:sqlite");
-  const dir = path.join(process.cwd(), "data");
-  mkdirSync(dir, { recursive: true });
-  const db = new DatabaseSync(path.join(dir, "loja.db"));
+  // SQLITE_PATH permite usar um arquivo próprio (testes automáticos usam um temporário).
+  const file = process.env.SQLITE_PATH ?? path.join(process.cwd(), "data", "loja.db");
+  mkdirSync(path.dirname(file), { recursive: true });
+  const db = new DatabaseSync(file);
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
   db.exec(schema.replace(/\{ID\}/g, "INTEGER PRIMARY KEY AUTOINCREMENT"));
+  for (const [table, col, ddl] of addedColumns) {
+    const have = new Set((db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name));
+    if (!have.has(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`);
+  }
   const query: QueryFn = async (text, params = []) => {
     const stmt = db.prepare(text.replace(/\$(\d+)/g, "?$1"));
     const rows = stmt.all(...(params as never[]));
     return rows as unknown as Row[];
   };
-  if (shouldSeed()) {
-    const [{ n }] = (await query("SELECT CAST(COUNT(*) AS INTEGER) AS n FROM vehicles")) as { n: number }[];
-    if (n === 0) await seed(query);
-  }
+  await prepareDemo(query, "sqlite");
   return { query, dialect: "sqlite" };
 }
 

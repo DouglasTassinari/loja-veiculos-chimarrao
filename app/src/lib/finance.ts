@@ -8,6 +8,7 @@ export type VehicleRow = {
   purchase_price: number; purchase_date: string; asking_price: number; fipe_price: number | null;
   min_price: number | null; sale_price: number | null; sale_date: string | null; ready_date: string | null;
   photos: string; created_at: string;
+  kind: "carro" | "moto"; featured: number; photo_credit: string;
 };
 
 export type Status = "preparacao" | "disponivel" | "reservado" | "vendido";
@@ -106,6 +107,19 @@ export function nextAction(v: VehicleRow, a: Analysis, photoCount: number): stri
 
 export function brl(n: number): string {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+}
+
+export function brl2(n: number): string {
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+export function parseCredits(v: Pick<VehicleRow, "photo_credit">): string[] {
+  try {
+    const p = JSON.parse(v.photo_credit);
+    return Array.isArray(p) ? p.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 export function km(n: number): string {

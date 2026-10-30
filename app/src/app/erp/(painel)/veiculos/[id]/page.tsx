@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { costsOf, vehicleById } from "@/lib/data";
 import { brl, fmtDate, km, todayISO, vehicleTitle } from "@/lib/finance";
-import { addVehicleCost, registerSale, removeCost, saveVehicle } from "../../../../actions";
+import { addVehicleCost, removeCost, saveVehicle } from "../../../../actions";
 import { AlertList, Card, Field, Stat, StatusPill, btn, btnGhost } from "../../../ui";
 
 export const dynamic = "force-dynamic";
@@ -94,6 +94,7 @@ export default async function Ficha({ params, searchParams }: PageProps<"/erp/ve
             </div>
             <div className="flex flex-wrap gap-5 text-sm">
               <label className="flex items-center gap-2"><input type="checkbox" name="published" defaultChecked={!!v.published} className="!w-auto" /> Publicar no site</label>
+              <label className="flex items-center gap-2"><input type="checkbox" name="featured" defaultChecked={!!v.featured} className="!w-auto" /> Destaque no site</label>
               <label className="flex items-center gap-2"><input type="checkbox" name="single_owner" defaultChecked={!!v.single_owner} className="!w-auto" /> Único dono</label>
               <label className="flex items-center gap-2"><input type="checkbox" name="inspected" defaultChecked={!!v.inspected} className="!w-auto" /> Vistoria realizada (laudo guardado)</label>
             </div>
@@ -105,15 +106,10 @@ export default async function Ficha({ params, searchParams }: PageProps<"/erp/ve
       </div>
 
       {!sold && (
-        <Card title="Registrar venda">
-          <form action={registerSale} className="grid gap-3 sm:grid-cols-4">
-            <input type="hidden" name="vehicle_id" value={v.id} />
-            <Field label="Preço fechado (R$)"><input name="sale_price" inputMode="decimal" defaultValue={v.asking_price} required /></Field>
-            <Field label="Data"><input name="sale_date" type="date" defaultValue={today} /></Field>
-            <Field label="Comissão do vendedor (R$)"><input name="commission" inputMode="decimal" defaultValue="0" /></Field>
-            <div className="flex items-end"><button className={btn}>Marcar como vendido</button></div>
-          </form>
-          <p className="mt-2 text-xs text-slate-500">Ao vender, o carro sai da vitrine (a página continua no ar como “vendido”, para SEO) e a comissão entra nos custos.</p>
+        <Card title="Vender este veículo">
+          <p className="text-sm text-slate-600">Registre o cliente, a forma de pagamento e, se for financiado, o prazo e a parcela. O sistema cria o cadastro do cliente e agenda o pós-venda e o aviso de fim do financiamento.</p>
+          <Link href={`/erp/vendas/nova?vehicle=${v.id}`} className={`${btn} mt-3 inline-block`}>Registrar venda</Link>
+          <p className="mt-2 text-xs text-slate-500">O carro sai da vitrine (a página continua no ar como “vendido”, para SEO) e a comissão entra nos custos.</p>
         </Card>
       )}
     </div>

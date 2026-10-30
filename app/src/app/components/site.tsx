@@ -59,9 +59,11 @@ export function VehicleCard({ v }: { v: VehicleView }) {
           <CarImage v={v} className="aspect-[4/3] w-full" />
           {sold && <div className="absolute inset-0 flex items-center justify-center bg-ink/60 text-2xl font-extrabold tracking-widest text-white">VENDIDO</div>}
           {v.status === "reservado" && <span className="absolute left-3 top-3 rounded-full bg-sand px-3 py-1 text-xs font-bold text-ink">RESERVADO</span>}
+          {v.kind === "moto" && <span className="absolute right-3 top-3 rounded-full bg-brand px-3 py-1 text-xs font-bold text-white">MOTO</span>}
+          {v.photoList.length > 1 && !sold && <span className="absolute bottom-2 right-2 rounded-full bg-ink/70 px-2 py-0.5 text-[11px] font-semibold text-white">{v.photoList.length} fotos</span>}
         </div>
         <div className="flex flex-1 flex-col gap-2 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-accent">{v.brand}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-accent-ink">{v.brand}</p>
           <h3 className="line-clamp-2 text-base font-extrabold leading-tight text-ink group-hover:text-brand">{v.model} {v.version}</h3>
           <p className="text-sm text-slate-600">{v.year_model} · {km(v.km)} km · {v.transmission}</p>
           <Seals v={v} />
@@ -71,7 +73,7 @@ export function VehicleCard({ v }: { v: VehicleView }) {
         </div>
       </Link>
       {!sold && (
-        <a href={carWa(v, "quero saber mais sobre este veículo")} className="mx-4 mb-4 flex items-center justify-center gap-2 rounded-lg bg-wa py-2.5 text-sm font-bold text-white hover:bg-wa-dark">
+        <a target="_blank" rel="noopener noreferrer" href={carWa(v, "quero saber mais sobre este veículo")} className="mx-4 mb-4 flex items-center justify-center gap-2 rounded-lg bg-wa py-2.5 text-sm font-bold text-white hover:bg-wa-dark">
           <WhatsAppIcon className="h-4 w-4" /> Falar com a equipe
         </a>
       )}

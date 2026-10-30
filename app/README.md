@@ -32,13 +32,22 @@ Segue o `Manual_Identidade_Visual_Chimarrao_Veiculos` (na pasta acima). Cores e 
 
 ## O que já existe
 
-**Site:** home, estoque com filtros e ordenação, página do veículo (selos automáticos, WhatsApp por intenção, simulador de parcela, formulário de lead, Schema.org Car/Offer), sitemap e robots, carros vendidos mantidos como "vendido".
+Veja o [README da raiz](../README.md) para a lista completa. Em resumo: site com assistente virtual (só regras) e simulador de financiamento próprio; ERP + CRM com funil arrastável, clientes, vendas com financiamento e tarefas automáticas de relacionamento.
 
-**ERP:** painel do dono (capital parado, giro, lucro do mês, caixa 30 dias, carros que precisam de ação), estoque com custo/margem/dias, ficha financeira do veículo (custos, preço vs FIPE, publicar no site, registrar venda com comissão), leads em Kanban, contas a pagar/receber com saldo projetado.
+## Testes
+
+```bash
+npm test               # unidade + integração (banco SQLite temporário)
+npm run test:e2e       # navegador (Chrome instalado): site e ERP, computador e celular, acessibilidade
+npm run test:smoke -- http://localhost:3000   # verificação rápida de um site no ar
+```
+
+`test:e2e` constrói o site, sobe numa porta própria (3210) com um banco descartável e salva uma imagem de cada tela em `e2e-screens/`. Para repetir sem reconstruir: `E2E_SKIP_BUILD=1 npm run test:e2e`.
 
 ## Limitações conhecidas
 
 - Login por senha única (sem usuários/perfis).
 - FIPE e preço de mercado são digitados à mão (sem integração).
 - Fotos por URL (sem upload).
-- SQLite local: para produção em Vercel migrar para PostgreSQL (só `db.ts`/`data.ts` mudam).
+- SQLite local é só para desenvolvimento; em produção use `DATABASE_URL` (PostgreSQL).
+- O assistente e o simulador usam limite de pedidos por IP em memória (basta para uma instância).

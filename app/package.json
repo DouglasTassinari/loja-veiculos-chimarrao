@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsx --conditions=react-server --test \"src/**/*.test.ts\"",
+    "test:unit": "tsx --conditions=react-server --test \"src/lib/**/*.test.ts\"",
+    "test:integration": "tsx --conditions=react-server --test \"src/integration/*.test.ts\"",
+    "test:smoke": "node scripts/smoke.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "next": "16.4.3",
@@ -16,8 +21,10 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@electric-sql/pglite": "^0.5.13",
     "@electric-sql/pglite-socket": "^0.2.16",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^26.6.6",
     "@types/react": "^19",
@@ -25,6 +32,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

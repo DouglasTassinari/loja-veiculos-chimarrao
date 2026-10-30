@@ -13,10 +13,16 @@
   --color-brand: #0f3d2e; /* verde pinheiro: cor institucional */
   --color-brand-dark: #0a2b20;
   --color-accent: #b06b3a; /* terracota: acento (decoração, ícones, linhas) */
+  --color-accent-ink: #96562b; /* terracota escuro: texto pequeno sobre fundo claro (contraste AA) */
+  --color-accent-soft: #e0a878; /* terracota claro: texto pequeno sobre o verde (contraste AA) */
   --color-wa: #96562b; /* terracota escurecido: fundo de botão com texto branco (contraste AA) */
   --color-wa-dark: #7e4724;
   --color-sand: #e7d9c6; /* areia */
   --color-paper: #f8f5ef;
+  /* Tons de apoio um pouco mais escuros que o padrão do Tailwind, para o texto pequeno passar no contraste AA sobre o fundo creme. */
+  --color-slate-500: #55667f;
+  --color-red-600: #cc000a;
+  --color-amber-600: #b45309;
   --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
 }
@@ -62,5 +68,8 @@ label span.lbl {
 @media (max-width: 767px) {
   body:has([data-sticky-cta]) .wa-float {
     display: none;
+  }
+  body:has([data-sticky-cta]) .chat-float {
+    bottom: 5.5rem;
   }
 }

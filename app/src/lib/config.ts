@@ -8,9 +8,20 @@ export const store = {
   whatsappLabel: "(51) 99999-9999",
   phoneLabel: "(51) 3499-9999",
   address: "Rua Campeiro, 99, Nova Sapucaia, Sapucaia do Sul - RS, 93228-314",
+  // Horário de atendimento: preencher só com o que a loja confirmar (null = o assistente manda falar com a equipe).
+  hours: null as string | null,
+  // O que a loja oferece. O assistente e o site só falam em troca/financiamento se estiver true.
+  offers: { trade: true, financing: true },
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? process.env.RENDER_EXTERNAL_URL ?? "http://localhost:3000",
   // NEXT_PUBLIC_PREVIEW=1: versão de demonstração (faixa no site, fora do Google).
   preview: process.env.NEXT_PUBLIC_PREVIEW === "1",
+};
+
+// Nota de desenvolvimento exibida no rodapé do site e do ERP.
+export const developer = {
+  name: "TAZZIN",
+  tagline: "Menos planilhas. Mais controle.",
+  url: "https://douglastassinari.github.io/cases/tazzin/",
 };
 
 // Parâmetros de gestão usados nos cálculos do ERP.

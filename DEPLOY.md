@@ -15,15 +15,20 @@ Mesmo padrão do NuMelhor: código no GitHub, publicado como serviço web no Ren
 
 ## Diferenças em relação ao NuMelhor
 
-- Mesmo padrão: `render.yaml` na raiz, senha digitada no Render, segredo gerado pelo Render, endereço público vindo do `RENDER_EXTERNAL_URL`, rota `/saude` e workflows no GitHub Actions (`verificacao` a cada push; `monitor` manual).
+- Mesmo padrão: `render.yaml` na raiz, senha digitada no Render, segredo gerado pelo Render, endereço público vindo do `RENDER_EXTERNAL_URL`, rota `/saude` e workflows no GitHub Actions (`verificacao` a cada push, com testes de código e testes no navegador; `monitor` a cada 2 horas no horário comercial, com e-mail do GitHub se o site cair).
 - Banco: o NuMelhor guarda os dados num arquivo SQLite. No plano gratuito do Render o disco é apagado a cada novo deploy, então aqui o estoque e o financeiro ficam no **PostgreSQL do Render** (`chimarrao-db`).
 - Com domínio próprio, definir `NEXT_PUBLIC_SITE_URL` (equivale ao `PUBLIC_BASE_URL` do NuMelhor).
 
 ## Como funciona nesta versão de demonstração
 
 - `NEXT_PUBLIC_PREVIEW=1`: faixa "Versão de demonstração" no site e bloqueio do Google (`noindex` e `robots.txt`).
-- `SEED_DEMO=1`: na primeira subida, o banco recebe os 8 veículos de exemplo.
+- `SEED_DEMO=1`: na primeira subida, o banco recebe os dados de exemplo (60 veículos, clientes, vendas, leads e tarefas). Quando a versão dos dados de exemplo muda (`SEED_VERSION` em `app/src/lib/seed.ts`), eles são refeitos sozinhos na subida seguinte, só nesta versão de demonstração.
 - Sem `ERP_PASSWORD` e `ERP_SECRET`, o ERP fica fechado em produção.
+
+## Fotos e taxas
+
+- As fotos dos veículos ficam em `app/public/vehicles` (cerca de 36 MB, versionadas no Git) e são de Wikimedia Commons com licença livre; o crédito aparece em cada anúncio e em `/creditos`.
+- A taxa do simulador vem da base pública do Banco Central (consulta feita pelo servidor, com cache de 6 h). Se a consulta falhar, o site usa a última semana conhecida e continua funcionando.
 
 ## Limites do plano gratuito do Render
 

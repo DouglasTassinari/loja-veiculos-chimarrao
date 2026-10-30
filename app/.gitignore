@@ -40,3 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 /data
+
+# testes
+/.e2e/
+/test-results/
+/playwright-report/
+/e2e-screens/

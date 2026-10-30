@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { allVehicles, cashEntries, leads } from "@/lib/data";
+import { openTasks, renewalOpportunities } from "@/lib/crm-data";
+import { daysUntil } from "@/lib/crm";
 import { brl, hoursSince, todayISO, vehicleTitle } from "@/lib/finance";
 import { Card, Stat, StatusPill } from "../ui";
 
@@ -7,7 +9,10 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Painel" };
 
 export default async function Painel() {
-  const [all, cashAll, leadsAll] = await Promise.all([allVehicles(), cashEntries(), leads()]);
+  const [all, cashAll, leadsAll, tasksAll, renewals] = await Promise.all([allVehicles(), cashEntries(), leads(), openTasks(), renewalOpportunities(120)]);
+  const todayStr = todayISO();
+  const dueNow = tasksAll.filter((t) => t.due_date <= todayStr);
+  const crmList = tasksAll.filter((t) => daysUntil(t.due_date, todayStr) <= 3).slice(0, 5);
   const stock = all.filter((v) => v.status !== "vendido");
   const month = todayISO().slice(0, 7);
   const soldMonth = all.filter((v) => v.status === "vendido" && v.sale_date?.startsWith(month));
@@ -38,7 +43,7 @@ export default async function Painel() {
       <h1 className="text-2xl font-extrabold text-ink">Painel do dono</h1>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Capital parado em estoque" value={brl(capital)} hint={`${stock.length} carros · custando ${brl(idleDay)}/dia`} />
+        <Stat label="Capital parado em estoque" value={brl(capital)} hint={`${stock.length} veículos · custando ${brl(idleDay)}/dia`} />
         <Stat label="Giro médio" value={`${avgDays} dias`} tone={avgDays > 45 ? "bad" : avgDays > 35 ? "warn" : "good"} hint="Meta: até 35 dias" />
         <Stat label="Lucro do mês" value={brl(profitMonth)} tone={profitMonth >= 0 ? "good" : "bad"} hint={`${soldMonth.length} vendas · margem ${marginMonth.toFixed(1)}%`} />
         <Stat label="Caixa próximos 30 dias" value={brl(receber - pagar)} tone={receber - pagar >= 0 ? "good" : "bad"} hint={`Entra ${brl(receber)} · Sai ${brl(pagar)}`} />
@@ -67,6 +72,20 @@ export default async function Painel() {
         </Card>
 
         <div className="space-y-6">
+          <Card title="Relacionamento com clientes">
+            <p className="text-sm text-slate-700"><b>{dueNow.length}</b> {dueNow.length === 1 ? "tarefa" : "tarefas"} para hoje ou atrasadas{renewals.length ? <> · <b>{renewals.length}</b> {renewals.length === 1 ? "financiamento terminando" : "financiamentos terminando"} em até 120 dias</> : null}</p>
+            {crmList.length > 0 && (
+              <ul className="mt-3 space-y-2">
+                {crmList.map((t) => (
+                  <li key={t.id} className="text-xs">
+                    <span className={`font-bold ${t.due_date < todayStr ? "text-red-600" : "text-amber-700"}`}>{t.due_date < todayStr ? "Atrasada" : t.due_date === todayStr ? "Hoje" : "Em breve"}</span>{" "}
+                    <span className="text-slate-700">{t.customer_name ? `${t.customer_name}: ` : ""}{t.title}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link href="/erp/tarefas" className="mt-3 inline-block text-sm font-semibold text-brand hover:underline">Abrir agenda de relacionamento →</Link>
+          </Card>
           <Card title="Vendas e funil">
             <p className="text-sm text-slate-700"><b>{newLeads.length}</b> {newLeads.length === 1 ? "lead novo" : "leads novos"}{lateLeads.length > 0 && <span className="font-semibold text-red-600">· {lateLeads.length} sem resposta há mais de 2h</span>}</p>
             <Link href="/erp/leads" className="mt-2 inline-block text-sm font-semibold text-brand hover:underline">Abrir CRM →</Link>

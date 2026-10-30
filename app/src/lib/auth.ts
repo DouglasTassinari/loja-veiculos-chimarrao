@@ -1,22 +1,12 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
+import { configured, isProd, password, sign } from "./token";
 
 // Acesso simples ao ERP por senha única (MVP). Trocar por login com usuários e
 // perfis (admin, vendedor, financeiro) na fase seguinte.
-//
-// Em desenvolvimento há senha e segredo padrão. Em produção, sem ERP_PASSWORD e
-// ERP_SECRET definidos o ERP fica fechado: ninguém entra.
 const COOKIE = "erp_session";
-const isProd = process.env.NODE_ENV === "production";
-const secret = () => process.env.ERP_SECRET ?? (isProd ? "" : "dev-secret-troque-em-producao");
-const password = () => process.env.ERP_PASSWORD ?? (isProd ? "" : "admin123");
-const configured = () => secret().length >= 16 && password().length >= 8;
-
-function sign(value: string): string {
-  return createHmac("sha256", secret()).update(value).digest("hex");
-}
 
 export function checkPassword(input: string): boolean {
   if (!configured()) return false;

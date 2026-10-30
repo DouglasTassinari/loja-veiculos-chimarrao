@@ -13,6 +13,7 @@ export default function Novo() {
       <h1 className="text-2xl font-extrabold text-ink">Novo veículo (entrada no estoque)</h1>
       <Card title="Identificação">
         <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Tipo de veículo"><select name="kind"><option value="carro">Carro</option><option value="moto">Moto</option></select></Field>
           <Field label="Placa"><input name="plate" required maxLength={8} /></Field>
           <Field label="Marca"><input name="brand" required /></Field>
           <Field label="Modelo"><input name="model" required /></Field>

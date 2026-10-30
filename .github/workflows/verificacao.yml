@@ -1,5 +1,8 @@
-# Roda a cada envio para o GitHub (push) e em todo pull request:
-# confere o estilo do código (eslint) e se o site compila (inclui checagem de tipos).
+# Roda a cada envio para o GitHub (push) e em todo pull request.
+#  - "site": estilo do código (eslint), tipos, testes automáticos (assistente, simulador, CRM, banco, APIs) e build.
+#  - "navegador": abre a loja de verdade no Chrome e usa o site e o ERP como um cliente e como o dono usariam
+#    (conversa com o assistente, simulação, funil, venda, tarefas, estoque), além de checar imagens quebradas,
+#    rolagem lateral e acessibilidade no computador e no celular.
 name: verificacao
 
 on:
@@ -29,7 +32,52 @@ jobs:
         run: npm ci
 
       - name: Conferir o código (eslint)
-        run: npx eslint src
+        run: npx eslint src e2e scripts
 
-      - name: Compilar o site (checa os tipos)
+      - name: Conferir os tipos
+        run: npx tsc --noEmit
+
+      - name: Testes automáticos (unidade e integração)
+        run: npm test
+
+      - name: Compilar o site
         run: npx next build
+
+  navegador:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Conferir o Chrome da máquina
+        run: google-chrome --version
+
+      - name: Testes no navegador (site e ERP, computador e celular)
+        run: npm run test:e2e
+        env:
+          CI: "true"
+          E2E_SCREENS: e2e-screens
+
+      - name: Guardar relatório e imagens das telas
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: telas-e-relatorio
+          path: |
+            app/e2e-screens
+            app/playwright-report
+            app/test-results
+          retention-days: 7
+          if-no-files-found: ignore
