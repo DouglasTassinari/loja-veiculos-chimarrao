@@ -1,20 +1,27 @@
-# Vigia o site publicado: abre as páginas principais, confere o banco (/saude), pede uma resposta ao
-# assistente virtual e confirma que o ERP continua exigindo senha. Se algo falhar, o GitHub manda e-mail ao dono.
+# Vigia o site publicado: abre as páginas principais, confere o banco (/saude), pede uma resposta ao assistente
+# virtual e confirma que o ERP continua exigindo senha. Se algo falhar, o GitHub manda e-mail ao dono.
 #
 # O plano grátis do Render "dorme" sem visitas e leva até ~1 minuto para acordar: o script espera até 90 s
 # na primeira conferência, e a verificação inteira é repetida uma vez (após 1 minuto) antes de dar falha.
+# Esta conferência também ACORDA o site na abertura da loja; dali em diante o próprio servidor se visita a cada
+# 9 minutos até 20h (variáveis KEEP_ALIVE e KEEP_ALIVE_HOURS no render.yaml), então ele não dorme no expediente.
 #
-# Roda de 2 em 2 horas no horário comercial de Brasília (8h às 20h) e também no botão "Run workflow".
-# Para vigiar outro endereço, troque SITE abaixo.
+# De 2 em 2 horas, das 8h às 20h de Brasília, todos os dias. O GitHub usa UTC (Brasília + 3 h). Roda aos 5 minutos
+# da hora porque na hora cheia o GitHub fica sobrecarregado e às vezes pula execuções.
 name: monitor
 
 on:
   schedule:
-    - cron: "0 11-23/2 * * *" # UTC; equivale a 8h, 10h, 12h, 14h, 16h, 18h e 20h em Brasília
-  workflow_dispatch:
+    - cron: "5 11-23/2 * * *" # 8h05, 10h05, 12h05, 14h05, 16h05, 18h05 e 20h05 em Brasília
+  workflow_dispatch: # botão "Run workflow" para rodar na hora
 
 permissions:
+  actions: write # para o último passo, que mantém este agendamento ligado
   contents: read
+
+concurrency:
+  group: monitor
+  cancel-in-progress: false
 
 jobs:
   site:
@@ -35,3 +42,11 @@ jobs:
           echo "::warning::Primeira verificação falhou; tentando de novo em 60 s."
           sleep 60
           node app/scripts/smoke.mjs "$SITE"
+
+      # O GitHub desliga agendamentos de repositórios sem commits por 60 dias. Reativar o próprio monitor
+      # a cada execução zera essa contagem.
+      - name: Manter o agendamento ligado
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/monitor.yml/enable"

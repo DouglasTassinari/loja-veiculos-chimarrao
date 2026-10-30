@@ -1,5 +1,6 @@
 import "server-only";
 import { mkdirSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import postgres from "postgres";
 import { seed, SEED_VERSION } from "./seed";
@@ -11,7 +12,8 @@ import { seed, SEED_VERSION } from "./seed";
 export type Row = Record<string, unknown>;
 export type QueryFn = (sql: string, params?: unknown[]) => Promise<Row[]>;
 
-type Conn = { query: QueryFn; dialect: "pg" | "sqlite" };
+// reserveRetryAt: só no banco de reserva (ver connect): quando tentar o PostgreSQL de novo.
+type Conn = { query: QueryFn; dialect: "pg" | "sqlite"; reserveRetryAt?: number };
 
 const globalForDb = globalThis as unknown as { __conn?: Promise<Conn> };
 
@@ -157,7 +159,16 @@ async function prepareDemo(q: QueryFn, dialect: "pg" | "sqlite") {
 
 async function openPg(url: string): Promise<Conn> {
   // max 1 e prepare:false: funciona com poolers (Neon/Supabase) em funções serverless.
-  const sql = postgres(url, { max: 1, prepare: false, idle_timeout: 20, onnotice: () => {} });
+  const sql = postgres(url, { max: 1, prepare: false, idle_timeout: 20, connect_timeout: 8, onnotice: () => {} });
+  try {
+    return await prepararPg(sql);
+  } catch (e) {
+    await sql.end({ timeout: 1 }).catch(() => {});
+    throw e;
+  }
+}
+
+async function prepararPg(sql: ReturnType<typeof postgres>): Promise<Conn> {
   const query: QueryFn = async (text, params = []) => (await sql.unsafe(text, params as never[])) as unknown as Row[];
   for (const stmt of schema.replace(/\{ID\}/g, "SERIAL PRIMARY KEY").split(";").map((s) => s.trim()).filter(Boolean)) {
     await sql.unsafe(stmt);
@@ -172,10 +183,10 @@ async function openPg(url: string): Promise<Conn> {
   return { query, dialect: "pg" };
 }
 
-async function openSqlite(): Promise<Conn> {
+async function openSqlite(arquivo?: string): Promise<Conn> {
   const { DatabaseSync } = await import("node:sqlite");
   // SQLITE_PATH permite usar um arquivo próprio (testes automáticos usam um temporário).
-  const file = process.env.SQLITE_PATH ?? path.join(process.cwd(), "data", "loja.db");
+  const file = arquivo ?? process.env.SQLITE_PATH ?? path.join(process.cwd(), "data", "loja.db");
   mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
@@ -193,9 +204,28 @@ async function openSqlite(): Promise<Conn> {
   return { query, dialect: "sqlite" };
 }
 
-function connect(): Promise<Conn> {
+const RESERVE_RETRY_MS = 5 * 60_000;
+
+async function connect(): Promise<Conn> {
   const url = process.env.DATABASE_URL;
-  return url ? openPg(url) : openSqlite();
+  if (!url) return openSqlite();
+  try {
+    return await openPg(url);
+  } catch (e) {
+    // Só na demonstração: se o PostgreSQL grátis do Render vencer ou cair, o site continua no ar com um banco
+    // temporário (dados de exemplo refeitos). Na loja real isto NÃO acontece: o erro aparece, para nunca
+    // gravar venda e cliente reais num banco que se apaga sozinho.
+    if (!demoEnabled()) throw e;
+    console.error("[db] PostgreSQL indisponível, usando o banco de reserva temporário (demonstração):", (e as Error).message);
+    const reserva = await openSqlite(path.join(os.tmpdir(), "chimarrao-reserva.db"));
+    return { ...reserva, reserveRetryAt: Date.now() + RESERVE_RETRY_MS };
+  }
+}
+
+// "pg", "sqlite" ou "reserva" (demonstração rodando sem o PostgreSQL); usado em /saude.
+export async function dbMode(): Promise<"pg" | "sqlite" | "reserva"> {
+  const c = await (globalForDb.__conn ??= connect());
+  return c.reserveRetryAt ? "reserva" : c.dialect;
 }
 
 export async function q<T = Row>(text: string, params: unknown[] = []): Promise<T[]> {
@@ -205,7 +235,12 @@ export async function q<T = Row>(text: string, params: unknown[] = []): Promise<
       throw e;
     });
   }
-  return (await (await globalForDb.__conn).query(text, params)) as unknown as T[];
+  const conn = await globalForDb.__conn;
+  if (conn.reserveRetryAt && Date.now() > conn.reserveRetryAt) {
+    globalForDb.__conn = undefined; // de tempos em tempos tenta voltar ao PostgreSQL
+    return q<T>(text, params);
+  }
+  return (await conn.query(text, params)) as unknown as T[];
 }
 
 export async function q1<T = Row>(text: string, params: unknown[] = []): Promise<T | null> {

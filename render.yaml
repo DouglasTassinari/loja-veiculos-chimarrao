@@ -33,3 +33,10 @@ services:
         value: "1"
       - key: SEED_DEMO
         value: "1"
+      # Sempre online no horário da loja (plano grátis dorme após 15 min sem visitas): o servidor visita a si mesmo
+      # a cada 9 min entre 8h e 20h (Brasília). Fora desse horário ele pode dormir, para poupar as 750 horas grátis
+      # do mês (somadas entre todos os serviços grátis da conta). Para o dia todo: "0-24".
+      - key: KEEP_ALIVE
+        value: "1"
+      - key: KEEP_ALIVE_HOURS
+        value: "8-20"

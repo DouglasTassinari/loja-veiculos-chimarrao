@@ -37,7 +37,7 @@ await check("saúde do banco (/saude)", async () => {
     try {
       const { res, ms } = await timed(`${base}/saude`, {}, COLD_MS);
       const j = await res.json().catch(() => ({}));
-      if (res.status === 200 && j.ok === true) return `${ms} ms`;
+      if (res.status === 200 && j.ok === true) return `${ms} ms · banco: ${j.banco ?? "?"}${j.banco === "reserva" ? " (PostgreSQL fora do ar: dados temporários!)" : ""} · sempre online: ${j.sempreOnline ? "sim" : "não"}`;
       last = `HTTP ${res.status} ${JSON.stringify(j)}`;
     } catch (e) { last = e.message; }
     await new Promise((r) => setTimeout(r, 10_000));

@@ -30,6 +30,19 @@ Mesmo padrão do NuMelhor: código no GitHub, publicado como serviço web no Ren
 - As fotos dos veículos ficam em `app/public/vehicles` (cerca de 36 MB, versionadas no Git) e são de Wikimedia Commons com licença livre; o crédito aparece em cada anúncio e em `/creditos`.
 - A taxa do simulador vem da base pública do Banco Central (consulta feita pelo servidor, com cache de 6 h). Se a consulta falhar, o site usa a última semana conhecida e continua funcionando.
 
+## Sempre online (plano grátis)
+
+O Render dorme o serviço grátis após 15 min sem visitas, e acordar leva ~1 minuto. Duas peças evitam isso no horário da loja:
+
+1. **O próprio servidor se visita** (`KEEP_ALIVE=1`, `app/src/instrumentation.ts`): a cada 9 min, entre 8h e 20h de Brasília (`KEEP_ALIVE_HOURS`, no `render.yaml`), ele chama `/saude` pelo endereço público, o que conta como visita. Fora do horário ele pode dormir.
+2. **O monitor do GitHub** (`monitor.yml`, de 2 em 2 h, 8h05 às 20h05) acorda o site na abertura, confere tudo e manda e-mail se algo falhar.
+
+Por que não 24 horas: o Render dá **750 horas grátis por mês somadas entre todos os serviços grátis da conta** (o NuMelhor entra nessa conta). Um serviço ligado o mês inteiro gasta ~744 h e os outros seriam suspensos. Das 8h às 20h são ~370 h. Para mudar, edite `KEEP_ALIVE_HOURS` no Render (ex.: `"7-22"`).
+
+**Banco que vence:** o PostgreSQL grátis do Render **expira 30 dias depois de criado** (o nosso foi criado em 30/10/2026, então vence por volta de 29/11/2026), com mais 14 dias para atualizar antes de ser apagado. Na demonstração isso não derruba o site: se o PostgreSQL falhar, o servidor usa um banco de reserva temporário com os dados de exemplo (`/saude` passa a mostrar `"banco":"reserva"` e o monitor avisa). **Na loja real isso não acontece de propósito**, para nunca gravar vendas reais num banco que se apaga: lá o erro aparece. Para a loja real use um banco que não vence (Neon grátis ou um PostgreSQL pago do Render) e coloque o endereço dele em `DATABASE_URL`.
+
+Opcional: um monitor externo gratuito (por exemplo UptimeRobot, a cada 5 min em `/saude`) cobre também as madrugadas, sem gastar minutos do GitHub; lembre da conta das 750 horas.
+
 ## Limites do plano gratuito do Render
 
 - O serviço dorme após ~15 min sem acesso; o primeiro acesso depois disso leva cerca de 1 minuto.
