@@ -29,6 +29,10 @@ Segue o `Manual_Identidade_Visual_Chimarrao_Veiculos` (na pasta acima). Cores e 
 | Consultas e gravações no banco | `src/lib/data.ts` |
 | Site público | `src/app/(site)` |
 | ERP | `src/app/erp` |
+| Cabeçalhos de segurança e cache das fotos | `src/lib/headers.ts` (ligados em `next.config.ts`) |
+| Tentativas de senha no ERP | `src/lib/ratelimit.ts` (`LOGIN_TRIES`, `LOGIN_WINDOW_MS`) |
+| Páginas de 404 e de erro | `src/app/not-found.tsx`, `src/app/(site)/{not-found,error}.tsx`, `src/app/erp/error.tsx` |
+| Imagem de compartilhamento (WhatsApp, redes) | `src/app/opengraph-image.tsx` |
 
 ## O que já existe
 
@@ -37,12 +41,14 @@ Veja o [README da raiz](../README.md) para a lista completa. Em resumo: site com
 ## Testes
 
 ```bash
-npm test               # unidade + integração (banco SQLite temporário)
+npm test               # unidade + integração (SQLite temporário e PostgreSQL de verdade)
 npm run test:e2e       # navegador (Chrome instalado): site e ERP, computador e celular, acessibilidade
 npm run test:smoke -- http://localhost:3000   # verificação rápida de um site no ar
 ```
 
 `test:e2e` constrói o site, sobe numa porta própria (3210) com um banco descartável e salva uma imagem de cada tela em `e2e-screens/`. Para repetir sem reconstruir: `E2E_SKIP_BUILD=1 npm run test:e2e`.
+
+`src/integration/db-postgres.integration.test.ts` sobe um **PostgreSQL de verdade** dentro do teste (PGlite numa porta local) e roda o mesmo caminho da produção: esquema, índices, colunas acrescentadas depois, trava de concorrência e dados de exemplo. É o que pega um erro de escrita no esquema que o SQLite perdoa e o Render não — o esquema é entregue ao PostgreSQL comando a comando, separado por ponto e vírgula, então nem os comandos nem os comentários podem ter um no meio.
 
 ## Limitações conhecidas
 

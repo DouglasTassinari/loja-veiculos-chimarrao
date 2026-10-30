@@ -29,6 +29,10 @@ jobs:
     timeout-minutes: 10
     env:
       SITE: https://chimarrao-veiculos.onrender.com
+      # Data em que o PostgreSQL grátis do Render expira (AAAA-MM-DD). A 7 dias do prazo o monitor
+      # falha de propósito, para chegar e-mail enquanto ainda dá tempo de trocar o banco.
+      # Deixe vazio para desligar este aviso.
+      DB_EXPIRA_EM: "2026-11-29"
     steps:
       - uses: actions/checkout@v5
 

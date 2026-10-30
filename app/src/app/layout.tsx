@@ -6,11 +6,19 @@ import { store } from "@/lib/config";
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+const title = `${store.name} — Seminovos em ${store.city}/${store.state}`;
+const description = `Carros seminovos e usados em ${store.city}/${store.state}. Veja os detalhes, simule a parcela e fale com a equipe.`;
+
 export const metadata: Metadata = {
   metadataBase: new URL(store.siteUrl),
   ...(store.preview ? { robots: { index: false, follow: false } } : {}),
-  title: { default: `${store.name} — Seminovos em ${store.city}/${store.state}`, template: `%s | ${store.short}` },
-  description: `Carros seminovos e usados em ${store.city}/${store.state}. Veja os detalhes, simule a parcela e fale com a equipe.`,
+  title: { default: title, template: `%s | ${store.short}` },
+  description,
+  applicationName: store.name,
+  // Como o link do site aparece quando é mandado no WhatsApp ou postado numa rede social.
+  openGraph: { type: "website", locale: "pt_BR", siteName: store.name, title, description },
+  twitter: { card: "summary_large_image", title, description },
+  formatDetection: { telephone: true, address: false, email: false },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

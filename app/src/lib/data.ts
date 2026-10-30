@@ -57,7 +57,7 @@ export async function chatVehicles(): Promise<VehicleLite[]> {
     }));
 }
 
-export type StoreFilter = { q?: string; brand?: string; body?: string; maxPrice?: number; trans?: string; sort?: string; kind?: string };
+export type StoreFilter = { q?: string; brand?: string; body?: string; maxPrice?: number; trans?: string; fuel?: string; minYear?: number; maxKm?: number; sort?: string; kind?: string };
 
 // Vitrine pública: só o que está publicado. Vendidos ficam visíveis (prova de giro), sem preço.
 export async function publicVehicles(f: StoreFilter = {}): Promise<VehicleView[]> {
@@ -70,6 +70,9 @@ export async function publicVehicles(f: StoreFilter = {}): Promise<VehicleView[]
   if (f.brand) list = list.filter((v) => v.brand === f.brand);
   if (f.body) list = list.filter((v) => v.body === f.body);
   if (f.trans) list = list.filter((v) => v.transmission === f.trans);
+  if (f.fuel) list = list.filter((v) => v.fuel === f.fuel);
+  if (f.minYear) list = list.filter((v) => v.year_model >= f.minYear!);
+  if (f.maxKm) list = list.filter((v) => v.km <= f.maxKm!);
   if (f.maxPrice) list = list.filter((v) => v.asking_price <= f.maxPrice!);
   const avail = (v: VehicleView) => (v.status === "vendido" ? 1 : 0);
   const sorters: Record<string, (a: VehicleView, b: VehicleView) => number> = {

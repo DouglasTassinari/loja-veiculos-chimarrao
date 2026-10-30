@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint src e2e scripts",
     "test": "tsx --conditions=react-server --test \"src/**/*.test.ts\"",
     "test:unit": "tsx --conditions=react-server --test \"src/lib/**/*.test.ts\"",
     "test:integration": "tsx --conditions=react-server --test \"src/integration/*.test.ts\"",

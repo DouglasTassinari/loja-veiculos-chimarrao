@@ -75,6 +75,17 @@ test("vitrine pública: filtros, ordem e visibilidade", async () => {
   assert.ok((await data.publicVehicles({ trans: "Automático" })).every((v) => v.transmission === "Automático"));
   const cheap = await data.publicVehicles({ maxPrice: 40000 });
   assert.ok(cheap.length > 3 && cheap.every((v) => v.asking_price <= 40000));
+  const flex = await data.publicVehicles({ fuel: "Flex" });
+  assert.ok(flex.length > 3 && flex.every((v) => v.fuel === "Flex"));
+  // Ano de corte tirado do próprio estoque, para o teste não depender do ano de hoje.
+  const anos = all.map((v) => v.year_model).sort((a, b) => b - a);
+  const corte = anos[Math.min(5, anos.length - 1)];
+  const novos = await data.publicVehicles({ minYear: corte });
+  assert.ok(novos.length > 3 && novos.every((v) => v.year_model >= corte), `minYear ${corte}`);
+  const rodados = await data.publicVehicles({ maxKm: 50000 });
+  assert.ok(rodados.length > 3 && rodados.every((v) => v.km <= 50000));
+  const juntos = await data.publicVehicles({ trans: "Automático", minYear: 2021, maxKm: 80000, maxPrice: 150000 });
+  assert.ok(juntos.every((v) => v.transmission === "Automático" && v.year_model >= 2021 && v.km <= 80000 && v.asking_price <= 150000), "filtros combinam");
   const sorted = (await data.publicVehicles({ sort: "menor-preco" })).filter((v) => v.status !== "vendido").map((v) => v.asking_price);
   assert.deepEqual(sorted, [...sorted].sort((a, b) => a - b));
   const byKm = (await data.publicVehicles({ sort: "menor-km" })).filter((v) => v.status !== "vendido").map((v) => v.km);

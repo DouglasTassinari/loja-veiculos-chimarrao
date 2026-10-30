@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { allow, clientIp } from "./ratelimit";
+import { LOGIN_TRIES, LOGIN_WINDOW_MS, allow, clientIp, ipFromHeaders, remaining, reset } from "./ratelimit";
 import { normalizePhone, validName } from "./phone";
 
 test("limite por chave: bloqueia depois do máximo e chaves são independentes", () => {
@@ -22,6 +22,31 @@ test("a janela reinicia depois do tempo", async () => {
 test("IP vem do primeiro item de x-forwarded-for", () => {
   assert.equal(clientIp(new Request("http://x", { headers: { "x-forwarded-for": "1.2.3.4, 10.0.0.1" } })), "1.2.3.4");
   assert.equal(clientIp(new Request("http://x")), "local");
+  // Nas server actions o IP vem da lista de cabeçalhos, não de um Request.
+  assert.equal(ipFromHeaders(new Headers({ "x-forwarded-for": " 9.9.9.9 , 10.0.0.1" })), "9.9.9.9");
+  assert.equal(ipFromHeaders(new Headers()), "local");
+});
+
+test("acerto apaga as tentativas: quem erra e depois acerta não fica bloqueado", () => {
+  const k = `r-${Math.random()}`;
+  for (let i = 0; i < 3; i++) allow(k, 5, 60_000);
+  assert.equal(remaining(k, 5), 2);
+  reset(k);
+  assert.equal(remaining(k, 5), 5);
+  for (let i = 0; i < 5; i++) assert.equal(allow(k, 5, 60_000), true);
+  assert.equal(allow(k, 5, 60_000), false);
+});
+
+test("senha do ERP: bloqueia depois das tentativas combinadas e o acerto zera", () => {
+  const k = `login:${Math.random()}`;
+  // Quem fica chutando senha é barrado na tentativa seguinte ao limite.
+  for (let i = 0; i < LOGIN_TRIES; i++) assert.equal(allow(k, LOGIN_TRIES, LOGIN_WINDOW_MS), true, `tentativa ${i + 1}`);
+  assert.equal(allow(k, LOGIN_TRIES, LOGIN_WINDOW_MS), false, "passou do limite");
+  // Quem acerta a senha recomeça do zero (o login chama reset).
+  reset(k);
+  assert.equal(allow(k, LOGIN_TRIES, LOGIN_WINDOW_MS), true);
+  assert.ok(LOGIN_TRIES >= 5 && LOGIN_TRIES <= 10, "limite nem frouxo nem irritante");
+  assert.ok(LOGIN_WINDOW_MS >= 10 * 60e3, "janela de pelo menos 10 minutos");
 });
 
 test("telefone brasileiro: formatos aceitos e rejeitados", () => {

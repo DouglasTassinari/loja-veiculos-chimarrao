@@ -1,12 +1,20 @@
 import { entrarNoErp, expect, test } from "./fixtures";
 
 const valor = (t: string | null) => Number((t ?? "").replace(/[^\d,]/g, "").replace(",", "."));
-const precosDosCards = (page: import("@playwright/test").Page) =>
-  page.locator("article p.text-2xl").evaluateAll((ps) => ps.map((p) => Number((p.textContent ?? "").replace(/\D/g, ""))));
+// O estoque chega em duas partes (primeiro o desenho da tela, depois os veículos), então toda leitura
+// em lote espera o primeiro cartão aparecer — senão lê a lista ainda vazia.
+const comCartoes = async (page: import("@playwright/test").Page) => {
+  await expect(page.locator("article").first()).toBeVisible();
+};
+const precosDosCards = async (page: import("@playwright/test").Page) => {
+  await comCartoes(page);
+  return page.locator("article p.text-2xl").evaluateAll((ps) => ps.map((p) => Number((p.textContent ?? "").replace(/\D/g, ""))));
+};
 
 test.describe("estoque", () => {
   test("abas Carros e Motos separam os veículos", async ({ page }) => {
     await page.goto("/estoque");
+    await comCartoes(page);
     const total = await page.locator("article").count();
     expect(total).toBeGreaterThanOrEqual(12);
 
@@ -26,6 +34,7 @@ test.describe("estoque", () => {
     await page.goto("/estoque");
     await page.getByLabel("Busca").fill("hilux");
     await page.getByRole("button", { name: "Filtrar" }).click();
+    await comCartoes(page);
     const nomes = await page.locator("article h3").allTextContents();
     expect(nomes.length).toBeGreaterThan(0);
     for (const n of nomes) expect(n.toLowerCase()).toContain("hilux");
@@ -42,6 +51,7 @@ test.describe("estoque", () => {
 
   test("a paginação avança e volta", async ({ page }) => {
     await page.goto("/estoque");
+    await comCartoes(page);
     const nav = page.getByRole("navigation", { name: "Páginas" });
     test.skip(!(await nav.count()), "poucos veículos para paginar");
     const primeiro = await page.locator("article h3").first().textContent();

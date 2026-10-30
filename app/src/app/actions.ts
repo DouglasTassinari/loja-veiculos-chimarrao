@@ -1,8 +1,10 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { checkPassword, endSession, requireSession, startSession } from "@/lib/auth";
+import { LOGIN_TRIES, LOGIN_WINDOW_MS, allow, ipFromHeaders, reset } from "@/lib/ratelimit";
 import {
   addCashEntry, addCost, appendLeadMessage, createLead, createVehicle, deleteCost, findRecentLead, sellVehicle,
   toggleCashPaid, updateVehicle, vehicleById,
@@ -30,6 +32,8 @@ export async function submitLead(f: FormData) {
   const phone = str(f, "phone");
   const raw = str(f, "back");
   const back = /^\/(veiculo\/[a-z0-9-]+|contato)$/.test(raw) ? raw : "/estoque"; // evita redirecionamento aberto
+  // Mesmo limite da API de leads: ninguém enche o funil enviando o formulário sem parar.
+  if (!allow(`form:${ipFromHeaders(await headers())}`, 12, 10 * 60e3)) redirect(`${back}?erro=espera`);
   const nm = validName(name);
   const ph = normalizePhone(phone);
   if (!nm || !ph || f.get("consent") !== "on") redirect(`${back}?erro=1`);
@@ -45,7 +49,10 @@ export async function submitLead(f: FormData) {
 
 // ---------- ERP ----------
 export async function login(f: FormData) {
+  const key = `login:${ipFromHeaders(await headers())}`;
+  if (!allow(key, LOGIN_TRIES, LOGIN_WINDOW_MS)) redirect("/erp/login?erro=espera");
   if (!checkPassword(str(f, "password"))) redirect("/erp/login?erro=1");
+  reset(key);
   await startSession();
   redirect("/erp");
 }

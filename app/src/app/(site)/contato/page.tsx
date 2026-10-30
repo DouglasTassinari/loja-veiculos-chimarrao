@@ -49,7 +49,7 @@ export default async function Contato({ searchParams }: PageProps<"/contato">) {
             </div>
             <button className="mt-4 w-full rounded-lg bg-brand py-3 font-bold text-white hover:bg-brand-dark">Enviar</button>
             {sp.enviado && <p className="mt-3 rounded-lg bg-sand p-3 text-sm font-medium text-brand" role="status">Recebemos seu contato. A equipe vai falar com você.</p>}
-            {sp.erro && <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">Confira o nome, o WhatsApp com DDD e a autorização.</p>}
+            {sp.erro && <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{sp.erro === "espera" ? "Muitos envios em pouco tempo. Espere alguns minutos ou chame no WhatsApp." : "Confira o nome, o WhatsApp com DDD e a autorização."}</p>}
           </form>
         </div>
 

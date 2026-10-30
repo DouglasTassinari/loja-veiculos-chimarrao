@@ -104,3 +104,21 @@ Cada veículo guarda seus anúncios externos (Webmotors, OLX, iCarros, Mercado L
 **Regras de conteúdo (mantidas).** Nada de feirões, prêmios, certificações ou licenças inventados: ficam ocultos até a loja confirmar e, na demonstração, aparecem marcados como exemplo.
 
 **Fora desta etapa:** integração com portais (Webmotors, OLX, iCarros), emissão de contrato e usuários com perfis diferentes.
+
+## Terceira etapa: endurecer o que já existe (30/10/2026)
+
+**Por que.** O site e o ERP já faziam o trabalho, mas estavam expostos em pontos que só aparecem depois que o sistema vai ao ar: ninguém impedia alguém de ficar chutando a senha do ERP, o navegador não recebia nenhuma instrução de segurança, uma página inexistente caía na tela do Next em inglês e o link do site, mandado no WhatsApp, ia sem imagem. Nada disso aparece numa demonstração — aparece no primeiro cliente real.
+
+**Segurança.** Cabeçalhos em toda resposta (política de conteúdo, bloqueio de iframe, `nosniff`, política de referência e de permissões, HSTS em produção), o ERP com `noindex` e sem cache, limite de 8 tentativas de senha por endereço de internet a cada 15 minutos e limite de envios no formulário do site — que só a API de leads tinha.
+
+**Quando algo dá errado.** 404 e erro com a cara da loja, em português, com busca e caminho de volta ao estoque e ao WhatsApp. O ERP tem a sua própria tela de falha, apontando o `/saude`.
+
+**Busca e compartilhamento.** Ficha da loja e caixa de busca para o Google (`AutoDealer` + `WebSite`), caminho de migalhas e oferta completa na página do veículo (estado do veículo, validade do preço, endereço), e imagem de compartilhamento própria — o link do site no WhatsApp deixa de ir "pelado".
+
+**Quem procura carro.** O estoque ganhou os filtros que faltavam: câmbio (existia só pela URL), combustível, ano a partir de e quilometragem até.
+
+**Desempenho.** Fotos e logotipos passam a ficar guardados no navegador, em vez de serem conferidos a cada página aberta; o estoque mostra o desenho da tela enquanto carrega.
+
+**Monitoramento.** O `/saude` diz qual publicação está no ar e há quanto tempo (é assim que se percebe um reinício ou um deploy que não subiu), e o monitor confere também os cabeçalhos de segurança, a página 404 e a imagem de compartilhamento. Dois avisos que faltavam passam a gerar e-mail: o site rodando no banco de reserva (o que for gravado ali some) e o PostgreSQL grátis a 7 dias de vencer.
+
+**Testes.** Até aqui todo o banco era testado em SQLite, e o PostgreSQL — o banco da loja publicada — só era exercitado no deploy. Agora um teste sobe um PostgreSQL de verdade e roda o mesmo caminho da produção. Ele pegou, na primeira execução, um erro de escrita no esquema que o SQLite perdoa e teria derrubado a subida no Render.

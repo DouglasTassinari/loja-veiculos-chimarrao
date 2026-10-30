@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { vehicleBySlug, publicVehicles } from "@/lib/data";
-import { brl, km, parseCredits, vehicleTitle } from "@/lib/finance";
+import { brl, km, parseCredits, todayISO, vehicleTitle } from "@/lib/finance";
 import { store } from "@/lib/config";
 import { getRates } from "@/lib/rates";
 import { submitLead } from "../../../actions";
@@ -41,20 +41,38 @@ export default async function VehiclePage({ params, searchParams }: PageProps<"/
     moto ? ["Tipo", v.body] : ["Portas", String(v.doors)], moto ? ["Categoria", "Moto"] : ["Carroceria", v.body],
   ];
 
+  const url = `${store.siteUrl}/veiculo/${v.slug}`;
+  // Preço anunciado vale por 30 dias; depois disso o Google volta a conferir o anúncio.
+  const priceValidUntil = todayISO(30);
   const ld = {
     "@context": "https://schema.org",
-    "@type": moto ? "Product" : "Car",
-    name: vehicleTitle(v),
-    brand: { "@type": "Brand", name: v.brand },
-    model: v.model,
-    ...(moto ? {} : { vehicleModelDate: String(v.year_model), mileageFromOdometer: { "@type": "QuantitativeValue", value: v.km, unitCode: "KMT" }, fuelType: v.fuel, vehicleTransmission: v.transmission }),
-    color: v.color,
-    image: v.photoList,
-    offers: {
-      "@type": "Offer", priceCurrency: "BRL", price: v.asking_price,
-      availability: sold ? "https://schema.org/SoldOut" : "https://schema.org/InStock",
-      seller: { "@type": "AutoDealer", name: store.name },
-    },
+    "@graph": [
+      {
+        "@type": moto ? "Product" : "Car",
+        "@id": `${url}#veiculo`,
+        name: `${vehicleTitle(v)} ${v.year_model}`,
+        description: v.description,
+        brand: { "@type": "Brand", name: v.brand },
+        model: v.model,
+        ...(moto ? {} : { vehicleModelDate: String(v.year_model), mileageFromOdometer: { "@type": "QuantitativeValue", value: v.km, unitCode: "KMT" }, fuelType: v.fuel, vehicleTransmission: v.transmission, numberOfDoors: v.doors }),
+        color: v.color,
+        image: v.photoList.map((p) => (p.startsWith("http") ? p : `${store.siteUrl}${p}`)),
+        offers: {
+          "@type": "Offer", url, priceCurrency: "BRL", price: v.asking_price, priceValidUntil,
+          itemCondition: "https://schema.org/UsedCondition",
+          availability: sold ? "https://schema.org/SoldOut" : v.status === "reservado" ? "https://schema.org/PreOrder" : "https://schema.org/InStock",
+          seller: { "@type": "AutoDealer", name: store.name, "@id": `${store.siteUrl}/#loja` },
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Início", item: store.siteUrl },
+          { "@type": "ListItem", position: 2, name: moto ? "Motos" : "Carros", item: `${store.siteUrl}/estoque?kind=${v.kind}` },
+          { "@type": "ListItem", position: 3, name: `${vehicleTitle(v)} ${v.year_model}` },
+        ],
+      },
+    ],
   };
   const word = moto ? "moto" : "carro";
 
@@ -138,7 +156,7 @@ export default async function VehiclePage({ params, searchParams }: PageProps<"/
               </div>
               <button className="mt-4 w-full rounded-lg bg-brand py-3 font-bold text-white hover:bg-brand-dark">Quero ser contatado</button>
               {sp.enviado && <p className="mt-3 rounded-lg bg-sand p-3 text-sm font-medium text-brand" role="status">Recebemos seu contato. A equipe vai falar com você.</p>}
-              {sp.erro && <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">Confira o nome, o WhatsApp com DDD e a autorização.</p>}
+              {sp.erro && <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{sp.erro === "espera" ? "Muitos envios em pouco tempo. Espere alguns minutos ou chame no WhatsApp." : "Confira o nome, o WhatsApp com DDD e a autorização."}</p>}
             </form>
           )}
         </aside>

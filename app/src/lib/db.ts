@@ -128,6 +128,21 @@ const schema = `
     done_at TEXT,
     created_at TEXT NOT NULL
   );
+
+  /* Índices das buscas que o sistema faz o tempo todo. Com o estoque de demonstração não fazem
+     diferença, mas numa loja com anos de leads e tarefas são eles que evitam varrer a tabela
+     inteira. A sintaxe vale nos dois bancos (PostgreSQL e SQLite).
+     Atenção: este texto é dividido por ponto e vírgula antes de ir ao PostgreSQL, então nem o
+     comentário nem os comandos podem ter um no meio. */
+  CREATE INDEX IF NOT EXISTS ix_costs_vehicle ON costs (vehicle_id);
+  CREATE INDEX IF NOT EXISTS ix_leads_phone ON leads (phone, source);
+  CREATE INDEX IF NOT EXISTS ix_leads_vehicle ON leads (vehicle_id);
+  CREATE INDEX IF NOT EXISTS ix_tasks_agenda ON tasks (done, due_date);
+  CREATE INDEX IF NOT EXISTS ix_tasks_customer ON tasks (customer_id);
+  CREATE INDEX IF NOT EXISTS ix_sales_customer ON sales (customer_id);
+  CREATE INDEX IF NOT EXISTS ix_customers_phone ON customers (phone);
+  CREATE INDEX IF NOT EXISTS ix_cash_due ON cash_entries (due_date);
+  CREATE INDEX IF NOT EXISTS ix_vehicles_vitrine ON vehicles (published, status);
 `;
 
 // Colunas acrescentadas depois da primeira versão. Bancos já existentes recebem aqui.

@@ -12,13 +12,38 @@ const nav = [
 ];
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
+  // Ficha da loja para o Google (busca local) e caixa de busca do site. Só entram dados confirmados:
+  // o horário, por exemplo, fica de fora enquanto a loja não informar.
   const ld = {
     "@context": "https://schema.org",
-    "@type": "AutoDealer",
-    name: store.name,
-    url: store.siteUrl,
-    telephone: store.phoneLabel,
-    address: { "@type": "PostalAddress", streetAddress: store.address, addressLocality: store.city, addressRegion: store.state, addressCountry: "BR" },
+    "@graph": [
+      {
+        "@type": "AutoDealer",
+        "@id": `${store.siteUrl}/#loja`,
+        name: store.name,
+        url: store.siteUrl,
+        logo: `${store.siteUrl}/brand/logo-horizontal.png`,
+        image: `${store.siteUrl}/brand/logo-horizontal.png`,
+        telephone: store.phoneLabel,
+        address: { "@type": "PostalAddress", streetAddress: store.address, addressLocality: store.city, addressRegion: store.state, addressCountry: "BR" },
+        areaServed: { "@type": "City", name: `${store.city}, ${store.state}` },
+        knowsLanguage: "pt-BR",
+        ...(store.hours ? { openingHours: store.hours } : {}),
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${store.siteUrl}/#site`,
+        url: store.siteUrl,
+        name: store.name,
+        inLanguage: "pt-BR",
+        publisher: { "@id": `${store.siteUrl}/#loja` },
+        potentialAction: {
+          "@type": "SearchAction",
+          target: { "@type": "EntryPoint", urlTemplate: `${store.siteUrl}/estoque?q={search_term_string}` },
+          "query-input": "required name=search_term_string",
+        },
+      },
+    ],
   };
   const hello = waLink(`Olá! Estava olhando o site da ${store.short} e quero falar com a equipe.`);
   return (

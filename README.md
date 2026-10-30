@@ -26,6 +26,19 @@ Tudo está em [`app/`](app) (Next.js 16, TypeScript, Tailwind v4). O desenho do 
 - **Tarefas e relacionamento**: pós-venda em 7 e 30 dias, revisão em 6 meses, aniversário da compra e **renovação quando o financiamento está acabando**, cada uma com a mensagem pronta para o WhatsApp.
 - **Caixa**: contas a pagar e a receber, com saldo projetado.
 
+## Segurança, erros e desempenho
+
+| Ponto | Como está resolvido |
+|---|---|
+| **Site embutido em outra página, script de fora, sniffing** | Todas as respostas levam cabeçalhos de segurança (`Content-Security-Policy`, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS em produção) definidos em [`app/src/lib/headers.ts`](app/src/lib/headers.ts). O site não anuncia mais a tecnologia que usa. |
+| **Chutar a senha do ERP** | 8 tentativas por endereço de internet a cada 15 minutos; acertar a senha zera a contagem. Passou disso, a tela avisa para esperar. |
+| **Encher o funil de leads falsos** | O formulário do site e a API de leads aceitam 12 envios por endereço de internet a cada 10 minutos. |
+| **Banco de reserva ou prazo do banco** | O monitor **falha de propósito** (e manda e-mail) se o site cair no banco temporário ou se faltarem 7 dias para o PostgreSQL grátis vencer. |
+| **ERP em buscador ou no cache** | `/erp` responde com `noindex` e `no-store`, além do `robots.txt`. |
+| **Página que não existe ou que falhou** | 404 e erro com a cara da loja, em português, com busca e saída para o estoque e o WhatsApp — nunca a tela padrão do Next em inglês. |
+| **Fotos pesando a cada visita** | Fotos e logotipos ficam guardados no navegador (1 e 7 dias), em vez de serem conferidos de novo a cada página. |
+| **Link do site no WhatsApp** | O site tem imagem de compartilhamento própria; a página de cada veículo usa a foto dele. |
+
 ## Rodar na sua máquina
 
 Precisa do Node.js 22 ou mais novo.
@@ -45,9 +58,9 @@ Sem `DATABASE_URL` o sistema usa SQLite em `app/data/loja.db` (cria sozinho e j�
 
 | Comando (em `app/`) | O que confere |
 |---|---|
-| `npm test` | Unidade e integração: regras do assistente (entendimento de frases, recomendação, orçamento), cálculo do financiamento (parcela, IOF, CET), regras do CRM (tarefas automáticas, datas), validação de telefone e nome, limite de pedidos, estoque (`catalog.json`), banco de dados real (SQLite temporário) e as APIs `/api/chat` e `/api/lead` (inclui tentativa de adulterar o estado, vazamento de custo e excesso de pedidos). |
+| `npm test` | Unidade e integração: regras do assistente (entendimento de frases, recomendação, orçamento), cálculo do financiamento (parcela, IOF, CET), regras do CRM (tarefas automáticas, datas), validação de telefone e nome, limite de tentativas de senha, cabeçalhos de segurança, estoque (`catalog.json`), **os dois bancos de verdade** — SQLite temporário e um PostgreSQL que sobe dentro do próprio teste, o mesmo caminho do Render — e as APIs `/api/chat` e `/api/lead` (inclui tentativa de adulterar o estado, vazamento de custo e excesso de pedidos). |
 | `npm run test:e2e` | Abre a loja de verdade no Chrome e usa o site e o ERP como cliente e como dono: conversa com o assistente até o orçamento, simulação e envio ao WhatsApp em nova aba, formulários, login do ERP, mover cartões (inclusive arrastando), registrar venda, tarefas, estoque e caixa. Também confere **imagens quebradas**, **rolagem lateral**, **erros no console** e **acessibilidade** (axe) no computador e no celular, e salva uma imagem de cada tela em `app/e2e-screens/`. |
-| `npm run test:smoke -- https://endereco-do-site` | Verificação rápida de um site já publicado (é o que o monitor usa). |
+| `npm run test:smoke -- https://endereco-do-site` | Verificação rápida de um site já publicado (é o que o monitor usa): páginas, banco (com a versão publicada e há quanto tempo está no ar), assistente, 404 da loja, **cabeçalhos de segurança**, **imagem de compartilhamento** e ERP fechado. |
 
 No GitHub, o fluxo **verificacao** roda tudo isso a cada envio. O fluxo **monitor** confere o site publicado de 2 em 2 horas no horário comercial e avisa por e-mail se algo falhar.
 

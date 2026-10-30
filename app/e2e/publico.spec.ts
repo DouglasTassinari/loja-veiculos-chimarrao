@@ -66,11 +66,16 @@ test("a página de um veículo abre sem erro, com dados estruturados e botão de
   expect(await imagensQuebradas(page)).toEqual([]);
   expect(await semRolagemLateral(page)).toBe(true);
 
+  // Os dados estruturados podem vir soltos ou dentro de um "@graph" (onde ficam também as migalhas).
   const blocos = await page.locator('script[type="application/ld+json"]').allTextContents();
-  const veiculo = blocos.map((b) => JSON.parse(b)).find((j) => /Car|Vehicle|Motorcycle|Product/.test(JSON.stringify(j["@type"])));
+  const itens = blocos.flatMap((b) => { const j = JSON.parse(b); return Array.isArray(j["@graph"]) ? j["@graph"] : [j]; });
+  const veiculo = itens.find((j) => /Car|Vehicle|Motorcycle|Product/.test(JSON.stringify(j["@type"])));
   expect(veiculo, "dados estruturados do veículo (Schema.org)").toBeTruthy();
   expect(JSON.stringify(veiculo)).toMatch(/"offers"/);
   expect(JSON.stringify(veiculo)).toMatch(/"price"/);
+  expect(JSON.stringify(veiculo), "estado do veículo na oferta").toMatch(/UsedCondition/);
+  const migalhas = itens.find((j) => j["@type"] === "BreadcrumbList");
+  expect(migalhas, "caminho de migalhas (Schema.org)").toBeTruthy();
 
   const wa = page.locator('a[href*="wa.me"]').first();
   await expect(wa).toHaveAttribute("target", "_blank");
@@ -80,5 +85,73 @@ test("a página de um veículo abre sem erro, com dados estruturados e botão de
 test("veículo que não existe mostra a página 404 do site", async ({ page }) => {
   const res = await page.goto("/veiculo/nao-existe-xyz");
   expect(res?.status()).toBe(404);
+  await expect(page.getByRole("heading", { name: /Esta página não existe/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /estoque/i }).first()).toBeVisible();
+});
+
+test("endereço desconhecido também cai na página 404 da loja, com busca e WhatsApp", async ({ page }) => {
+  const res = await page.goto("/pagina-que-nao-existe-xyz");
+  expect(res?.status()).toBe(404);
+  await expect(page.getByRole("heading", { name: /Esta página não existe/ })).toBeVisible();
+  await expect(page.getByLabel("Buscar no estoque")).toBeVisible();
+  await expect(page.locator('a[href*="wa.me"]').first()).toHaveAttribute("target", "_blank");
+  // A busca da página de erro leva mesmo ao estoque.
+  await page.getByLabel("Buscar no estoque").fill("Onix");
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await expect(page).toHaveURL(/\/estoque\?q=Onix/);
+});
+
+test("toda resposta leva os cabeçalhos de segurança, e o ERP fica fora de buscadores e do cache", async ({ page }) => {
+  const res = await page.goto("/");
+  const h = res!.headers();
+  expect(h["x-content-type-options"]).toBe("nosniff");
+  expect(h["x-frame-options"]).toBe("DENY");
+  expect(h["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+  expect(h["content-security-policy"], "política de conteúdo").toMatch(/frame-ancestors 'none'/);
+  expect(h["permissions-policy"]).toMatch(/camera=\(\)/);
+  expect(h["x-powered-by"], "não anunciar a tecnologia").toBeUndefined();
+
+  const erp = await page.request.get("/erp/login");
+  expect(erp.headers()["x-robots-tag"]).toMatch(/noindex/);
+  expect(erp.headers()["cache-control"]).toMatch(/no-store/);
+});
+
+test("as fotos ficam guardadas no navegador em vez de serem buscadas de novo a cada página", async ({ page }) => {
+  const foto = await page.request.get("/vehicles/01-1.jpg");
+  expect(foto.status()).toBe(200);
+  expect(foto.headers()["cache-control"], "foto sem cache pesa a navegação").toMatch(/max-age=[1-9]/);
+});
+
+test("o estoque filtra por câmbio, combustível, ano e quilometragem", async ({ page }) => {
+  await page.goto("/estoque?kind=carro");
+  const cartoes = page.locator('a[href^="/veiculo/"]');
+  await expect(cartoes.first()).toBeVisible();
+  const antes = await cartoes.count();
+  expect(antes).toBeGreaterThan(3);
+
+  await page.getByLabel("Câmbio").selectOption("Automático");
+  await page.getByRole("button", { name: "Filtrar" }).click();
+  await expect(page).toHaveURL(/trans=Autom/);
+  await expect(cartoes.first()).toBeVisible();
+  const automaticos = await cartoes.count();
+  expect(automaticos).toBeGreaterThan(0);
+  // Todo cartão listado precisa dizer "Automático" na linha "ano · km · câmbio" (a que começa pelo ano).
+  const linhas = (await page.locator("article p").allTextContents()).filter((t) => /^\d{4} · /.test(t));
+  expect(linhas.length).toBeGreaterThan(0);
+  for (const l of linhas) expect(l, "cartão fora do filtro de câmbio").toMatch(/Automático/);
+
+  // O filtro de ano continua valendo junto com o de câmbio.
+  const ano = page.getByLabel("Ano a partir de");
+  const opcao = (await ano.locator("option").nth(1).getAttribute("value"))!;
+  await ano.selectOption(opcao);
+  await page.getByRole("button", { name: "Filtrar" }).click();
+  await expect(page).toHaveURL(new RegExp(`minYear=${opcao}`));
+  await expect(page).toHaveURL(/trans=Autom/);
+  await expect(cartoes.first()).toBeVisible();
+  expect(await cartoes.count()).toBeLessThanOrEqual(automaticos);
+
+  await page.getByRole("link", { name: "Limpar" }).click();
+  await expect(page).toHaveURL(/\/estoque$/);
+  await expect(cartoes.first()).toBeVisible();
+  expect(await cartoes.count()).toBeGreaterThanOrEqual(antes);
 });
