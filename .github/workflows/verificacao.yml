@@ -34,8 +34,8 @@ jobs:
       - name: Conferir o código (eslint)
         run: npx eslint src e2e scripts
 
-      - name: Conferir os tipos
-        run: npx tsc --noEmit
+      - name: Conferir os tipos (o Next gera antes os tipos das páginas)
+        run: npx next typegen && npx tsc --noEmit
 
       - name: Testes automáticos (unidade e integração)
         run: npm test
