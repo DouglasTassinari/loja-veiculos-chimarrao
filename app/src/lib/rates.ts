@@ -33,7 +33,34 @@ function quantile(sorted: number[], q: number): number {
   return sorted[base] + (sorted[Math.min(base + 1, sorted.length - 1)] - sorted[base]) * (pos - base);
 }
 
+// Taxa já consultada neste processo. A consulta ao Banco Central são até cinco idas e voltas e leva
+// vários segundos; a resposta vale para a semana inteira. Sem guardar aqui, quem abre o primeiro
+// anúncio depois de o servidor subir paga essa espera (o cache do Next não sobrevive à subida).
+// Sucesso vale 6 h. Se o Banco Central estiver fora, a referência fixa vale 5 min, para tentar de novo logo.
+const CACHE_OK_MS = 6 * 3600e3;
+const CACHE_FAIL_MS = 5 * 60e3;
+let cache: { until: number; rates: Rates } | null = null;
+let emAndamento: Promise<Rates> | null = null;
+
+// Para os testes automáticos, que trocam a resposta do Banco Central entre um caso e outro.
+export function clearRatesCache(): void {
+  cache = null;
+  emAndamento = null;
+}
+
 export async function getRates(): Promise<Rates> {
+  if (cache && Date.now() < cache.until) return cache.rates;
+  // Visitas que chegam juntas esperam a mesma consulta, em vez de cada uma chamar o Banco Central.
+  emAndamento ??= consultarBancoCentral()
+    .then((rates) => {
+      cache = { until: Date.now() + (rates.source === "bcb" ? CACHE_OK_MS : CACHE_FAIL_MS), rates };
+      return rates;
+    })
+    .finally(() => { emAndamento = null; });
+  return emAndamento;
+}
+
+async function consultarBancoCentral(): Promise<Rates> {
   try {
     const periods = await odata<{ inicioPeriodo: string }>("ConsultaDatas", { $filter: "tipoModalidade eq 'D'", $orderby: "inicioPeriodo desc", $top: "4" });
     for (const p of periods) {

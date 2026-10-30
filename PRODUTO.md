@@ -117,7 +117,7 @@ Cada veículo guarda seus anúncios externos (Webmotors, OLX, iCarros, Mercado L
 
 **Quem procura carro.** O estoque ganhou os filtros que faltavam: câmbio (existia só pela URL), combustível, ano a partir de e quilometragem até.
 
-**Desempenho.** Fotos e logotipos passam a ficar guardados no navegador, em vez de serem conferidos a cada página aberta; o estoque mostra o desenho da tela enquanto carrega.
+**Desempenho.** Fotos e logotipos passam a ficar guardados no navegador, em vez de serem conferidos a cada página aberta; o estoque mostra o desenho da tela enquanto carrega. E o monitor recém-instalado revelou, na primeira rodada contra o site publicado, que **o primeiro anúncio aberto depois de cada publicação levava quase 9 segundos**: era a consulta ao Banco Central com o cache vazio. Agora o servidor busca a taxa na subida e guarda no processo — as aberturas seguintes já estavam em 0,5 s.
 
 **Monitoramento.** O `/saude` diz qual publicação está no ar e há quanto tempo (é assim que se percebe um reinício ou um deploy que não subiu), e o monitor confere também os cabeçalhos de segurança, a página 404 e a imagem de compartilhamento. Dois avisos que faltavam passam a gerar e-mail: o site rodando no banco de reserva (o que for gravado ali some) e o PostgreSQL grátis a 7 dias de vencer.
 

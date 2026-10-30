@@ -37,6 +37,7 @@ O monitor confere os cabeçalhos a cada rodada: se um deploy os derrubar, chega 
 
 - As fotos dos veículos ficam em `app/public/vehicles` (cerca de 36 MB, versionadas no Git) e são de Wikimedia Commons com licença livre; o crédito aparece em cada anúncio e em `/creditos`.
 - A taxa do simulador vem da base pública do Banco Central (consulta feita pelo servidor, com cache de 6 h). Se a consulta falhar, o site usa a última semana conhecida e continua funcionando.
+- A consulta ao Banco Central são várias idas e voltas e leva segundos, então o servidor a faz **na subida** (`app/src/instrumentation.ts`) e guarda o resultado no processo por 6 h. Sem isso, quem abrisse o primeiro anúncio depois de cada publicação ou de o serviço acordar esperaria ~8 s.
 
 ## Sempre online (plano grátis)
 

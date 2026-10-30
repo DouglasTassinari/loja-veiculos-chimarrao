@@ -16,7 +16,8 @@ function stub(handler: (url: string) => unknown) {
 }
 
 test("usa só bancos de referência e calcula quartis", async () => {
-  const { getRates } = await import("./rates");
+  const { getRates, clearRatesCache } = await import("./rates");
+  clearRatesCache();
   stub((url) => {
     if (url.includes("ConsultaDatas")) return [{ inicioPeriodo: "2026-10-09" }];
     return [
@@ -34,7 +35,8 @@ test("usa só bancos de referência e calcula quartis", async () => {
 });
 
 test("pula período sem dados suficientes e usa o anterior", async () => {
-  const { getRates } = await import("./rates");
+  const { getRates, clearRatesCache } = await import("./rates");
+  clearRatesCache();
   stub((url) => {
     if (url.includes("ConsultaDatas")) return [{ inicioPeriodo: "2026-10-16" }, { inicioPeriodo: "2026-10-09" }];
     if (url.includes("2026-10-16")) return [];
@@ -46,17 +48,45 @@ test("pula período sem dados suficientes e usa o anterior", async () => {
 });
 
 test("Banco Central fora do ar: cai na referência fixa sem quebrar", async () => {
-  const { getRates } = await import("./rates");
+  const { getRates, clearRatesCache } = await import("./rates");
+  clearRatesCache();
   const { FALLBACK_RATES } = await import("./financing");
   stub(() => new Error("offline"));
   assert.deepEqual(await getRates(), FALLBACK_RATES);
 });
 
 test("resposta com poucos bancos também cai na referência", async () => {
-  const { getRates } = await import("./rates");
+  const { getRates, clearRatesCache } = await import("./rates");
+  clearRatesCache();
   const { FALLBACK_RATES } = await import("./financing");
   stub((url) => (url.includes("ConsultaDatas") ? [{ inicioPeriodo: "2026-10-09" }] : [row("92702067", "BANRISUL", 1.8)]));
   assert.equal((await getRates()).source, FALLBACK_RATES.source);
+});
+
+test("a taxa fica guardada: a segunda visita não volta ao Banco Central", async () => {
+  const { getRates, clearRatesCache } = await import("./rates");
+  clearRatesCache();
+  let chamadas = 0;
+  stub((url) => {
+    chamadas++;
+    if (url.includes("ConsultaDatas")) return [{ inicioPeriodo: "2026-10-09" }];
+    return [row("92702067", "BANRISUL", 1.8), row("07707650", "SANTANDER", 1.9), row("60872504", "ITAU", 2.0), row("59588111", "BV", 2.2)];
+  });
+  const primeira = await getRates();
+  const depois = chamadas;
+  assert.ok(depois >= 2, "a primeira consulta vai ao Banco Central");
+
+  // Visitas seguintes usam o que já foi consultado.
+  assert.deepEqual(await getRates(), primeira);
+  assert.deepEqual(await getRates(), primeira);
+  assert.equal(chamadas, depois, "não voltou ao Banco Central");
+
+  // Várias visitas ao mesmo tempo com o cache vazio fazem uma consulta só.
+  clearRatesCache();
+  chamadas = 0;
+  const juntas = await Promise.all([getRates(), getRates(), getRates()]);
+  assert.equal(juntas[0].source, "bcb");
+  assert.equal(chamadas, depois, "três visitas juntas deveriam render uma consulta só");
 });
 
 test.after(() => { globalThis.fetch = realFetch; });

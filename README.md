@@ -12,7 +12,7 @@ Tudo está em [`app/`](app) (Next.js 16, TypeScript, Tailwind v4). O desenho do 
 | Parte | Como funciona |
 |---|---|
 | **Assistente virtual** | Só regras, **sem IA**. Entende frases como "SUV automático até 120 mil para a família", pergunta o que falta (tipo, orçamento, uso, entrada), sugere os veículos que mais combinam (com o motivo) e monta um **orçamento** com entrada, parcela por prazo, IOF e CET. Pede nome, WhatsApp e autorização (LGPD) e entrega o contato à equipe como lead. Nunca vê custo nem margem: só dados públicos. |
-| **Simulador de financiamento** | Próprio da loja (não leva a banco nenhum). Pede nome e WhatsApp antes de mostrar parcela, IOF, CET e comparação de prazos. A taxa de referência vem da base pública do Banco Central (taxas médias de veículos por banco, atualizada a cada 6 h; se estiver fora do ar usa a última semana conhecida). |
+| **Simulador de financiamento** | Próprio da loja (não leva a banco nenhum). Pede nome e WhatsApp antes de mostrar parcela, IOF, CET e comparação de prazos. A taxa de referência vem da base pública do Banco Central (taxas médias de veículos por banco, atualizada a cada 6 h; buscada já na subida do servidor, para ninguém esperar por ela; se estiver fora do ar usa a última semana conhecida). |
 | **WhatsApp** | Todo link de WhatsApp abre em **nova aba**, para o cliente não sair da loja. |
 | **Páginas institucionais** | Reconhecimento, certificações e licenças só mostram o que foi **confirmado**; na versão de demonstração aparecem marcados como "Exemplo". |
 | **Crédito de desenvolvimento** | Rodapé do site e do ERP: "Desenvolvido por TAZZIN". |
@@ -37,6 +37,7 @@ Tudo está em [`app/`](app) (Next.js 16, TypeScript, Tailwind v4). O desenho do 
 | **ERP em buscador ou no cache** | `/erp` responde com `noindex` e `no-store`, além do `robots.txt`. |
 | **Página que não existe ou que falhou** | 404 e erro com a cara da loja, em português, com busca e saída para o estoque e o WhatsApp — nunca a tela padrão do Next em inglês. |
 | **Fotos pesando a cada visita** | Fotos e logotipos ficam guardados no navegador (1 e 7 dias), em vez de serem conferidos de novo a cada página. |
+| **Primeiro anúncio lento depois de publicar** | A taxa do Banco Central é buscada na subida do servidor e guardada por 6 h: a espera de ~9 s que o primeiro visitante pagava virou meio segundo. |
 | **Link do site no WhatsApp** | O site tem imagem de compartilhamento própria; a página de cada veículo usa a foto dele. |
 
 ## Rodar na sua máquina
