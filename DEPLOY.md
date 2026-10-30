@@ -34,7 +34,7 @@ Mesmo padrão do NuMelhor: código no GitHub, publicado como serviço web no Ren
 
 O Render dorme o serviço grátis após 15 min sem visitas, e acordar leva ~1 minuto. Duas peças evitam isso no horário da loja:
 
-1. **O próprio servidor se visita** (`KEEP_ALIVE=1`, `app/src/instrumentation.ts`): a cada 9 min, entre 8h e 20h de Brasília (`KEEP_ALIVE_HOURS`, no `render.yaml`), ele chama `/saude` pelo endereço público, o que conta como visita. Fora do horário ele pode dormir.
+1. **O próprio servidor se visita** (`app/src/instrumentation.ts`; já vem ligado quando roda no Render, `KEEP_ALIVE=0` desliga): a cada 9 min, entre 8h e 20h de Brasília (`KEEP_ALIVE_HOURS`, padrão `8-20`), ele chama `/saude` pelo endereço público, o que conta como visita. Fora do horário ele pode dormir.
 2. **O monitor do GitHub** (`monitor.yml`, de 2 em 2 h, 8h05 às 20h05) acorda o site na abertura, confere tudo e manda e-mail se algo falhar.
 
 Por que não 24 horas: o Render dá **750 horas grátis por mês somadas entre todos os serviços grátis da conta** (o NuMelhor entra nessa conta). Um serviço ligado o mês inteiro gasta ~744 h e os outros seriam suspensos. Das 8h às 20h são ~370 h. Para mudar, edite `KEEP_ALIVE_HOURS` no Render (ex.: `"7-22"`).

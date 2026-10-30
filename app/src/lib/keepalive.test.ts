@@ -21,8 +21,10 @@ test("a janela usa o horário de Brasília (UTC-3), não o do servidor", () => {
   assert.equal(inWindow(new Date("2026-10-30T23:00:00Z"), w), false, "20h00");
 });
 
-test("só liga com KEEP_ALIVE=1 e só usa endereço público https", () => {
-  assert.equal(keepAliveEnabled({}), false);
+test("liga no Render por padrão, KEEP_ALIVE=0 desliga, e só usa endereço público https", () => {
+  assert.equal(keepAliveEnabled({}), false, "na máquina do desenvolvedor não liga");
+  assert.equal(keepAliveEnabled({ RENDER: "true" }), true);
+  assert.equal(keepAliveEnabled({ RENDER: "true", KEEP_ALIVE: "0" }), false);
   assert.equal(keepAliveEnabled({ KEEP_ALIVE: "0" }), false);
   assert.equal(keepAliveEnabled({ KEEP_ALIVE: "1" }), true);
   assert.equal(publicUrl({}), null);

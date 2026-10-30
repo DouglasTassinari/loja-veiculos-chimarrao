@@ -23,8 +23,10 @@ export function inWindow(now: Date, w: Window): boolean {
   return h >= w.from && h < w.to;
 }
 
+// Ligado por padrão quando o servidor roda no Render (que define RENDER=true); KEEP_ALIVE=0 desliga, KEEP_ALIVE=1 força.
 export function keepAliveEnabled(env: Record<string, string | undefined>): boolean {
-  return env.KEEP_ALIVE === "1";
+  if (env.KEEP_ALIVE === "0") return false;
+  return env.KEEP_ALIVE === "1" || env.RENDER === "true";
 }
 
 // Endereço público do próprio serviço (nunca localhost: a visita precisa entrar pela internet para contar).
