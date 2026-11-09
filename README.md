@@ -71,3 +71,10 @@ No GitHub, o fluxo **verificacao** roda tudo isso a cada envio. O fluxo **monito
 - O WhatsApp (51 99999-9999), o telefone e o horário são fictícios. Troque em `app/src/lib/config.ts`.
 - Feirões, prêmios, certificações e licenças **não foram inventados**: só entram no site depois de confirmados em `app/src/lib/content.ts`.
 - Para a loja real: tirar `NEXT_PUBLIC_PREVIEW` e `SEED_DEMO` no Render, cadastrar os veículos pelo ERP e trocar os dados da loja.
+
+
+---
+
+<p align="center">
+  <a href="https://douglastassinari.github.io/tazzin-site/"><img src="https://douglastassinari.github.io/tazzin-site/assets/img/selo-tazzin.svg" alt="Desenvolvido por TAZZIN" height="46"></a>
+</p>
