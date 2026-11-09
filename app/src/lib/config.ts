@@ -21,7 +21,7 @@ export const store = {
 export const developer = {
   name: "TAZZIN",
   tagline: "Menos planilhas. Mais controle.",
-  url: "https://douglastassinari.github.io/cases/tazzin/",
+  url: "https://douglastassinari.github.io/tazzin-site/",
 };
 
 // Parâmetros de gestão usados nos cálculos do ERP.

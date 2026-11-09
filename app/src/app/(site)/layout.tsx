@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { developer, store } from "@/lib/config";
+import { TazzinMark } from "@/app/components/TazzinMark";
 import ChatWidget from "../components/ChatWidget";
 import { WhatsAppIcon, waLink } from "../components/site";
 
@@ -111,7 +112,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
           <p>© {new Date().getFullYear()} {store.name}. Financiamento sujeito à análise de crédito.</p>
           <p className="mt-1">
             Site e sistema de gestão desenvolvidos pela{" "}
-            <a href={developer.url} target="_blank" rel="noopener noreferrer" className="font-bold text-sand underline hover:text-paper">{developer.name}</a>
+            <a href={developer.url} target="_blank" rel="noopener noreferrer" aria-label="Tazzin" className="inline-flex items-center gap-1.5 align-middle font-bold tracking-wider text-sand hover:text-paper"><TazzinMark />{developer.name}</a>
             {" "}· {developer.tagline}
           </p>
         </div>

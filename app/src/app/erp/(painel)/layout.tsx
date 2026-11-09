@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/auth";
 import { dueTaskCount } from "@/lib/crm-data";
 import { developer, store } from "@/lib/config";
+import { TazzinMark } from "@/app/components/TazzinMark";
 import { logout } from "../../actions";
 
 export const metadata = { title: { default: "ERP", template: "%s | ERP" }, robots: { index: false, follow: false } };
@@ -43,7 +44,7 @@ export default async function ErpLayout({ children }: { children: React.ReactNod
       <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
       <footer className="mx-auto max-w-7xl px-4 pb-8 pt-2 text-center text-xs text-slate-500">
         ERP e CRM desenvolvidos pela{" "}
-        <a href={developer.url} target="_blank" rel="noopener noreferrer" className="font-bold text-brand underline">{developer.name}</a>
+        <a href={developer.url} target="_blank" rel="noopener noreferrer" aria-label="Tazzin" className="inline-flex items-center gap-1.5 align-middle font-bold tracking-wider text-brand"><TazzinMark />{developer.name}</a>
         {" "}· {developer.tagline}
       </footer>
     </div>
